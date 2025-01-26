@@ -5,20 +5,38 @@
   --color-card: #24283b;
   --color-text: #c0caf5;
   --color-primary: #7aa2f7;
+  --color-primary-hover: #3b82f6;
   --color-border: #3b4261;
 }
 
-/* Apply global font and background */
+/* Global styles */
 body {
-  font-family: "JetBrains Mono", monospace;
-  background-color: var(--color-bg);
-  color: var(--color-text);
-  margin: 0;
-  padding: 0;
+  @apply bg-[var(--color-bg)] text-[var(--color-text)] font-mono;
 }
 
 .container {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 2rem;
+  @apply max-w-3xl mx-auto p-6;
+}
+
+/* Buttons */
+.btn {
+  @apply px-6 py-3 rounded-lg font-bold transition-all shadow-md;
+}
+
+.btn-primary {
+  @apply bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:-translate-y-1;
+}
+
+.btn-secondary {
+  @apply bg-gray-600 text-white hover:bg-gray-700 hover:-translate-y-1;
+}
+
+/* Input Fields */
+.input-field {
+  @apply w-full h-14 p-4 pl-14 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+}
+
+/* Card Styling */
+.card {
+  @apply bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)];
 }

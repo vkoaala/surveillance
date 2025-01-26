@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { FaTrashAlt } from "react-icons/fa";
 
 const RepoList = ({ repos, deleteRepo }) => {
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -8,7 +9,7 @@ const RepoList = ({ repos, deleteRepo }) => {
       {repos.map((repo) => (
         <div
           key={repo.id}
-          className="bg-[var(--color-card)] p-5 rounded-lg shadow-md flex justify-between items-center border border-[var(--color-border)]"
+          className="bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)] flex justify-between items-center transition-all hover:-translate-y-1 hover:shadow-lg"
         >
           <div>
             <a
@@ -23,10 +24,14 @@ const RepoList = ({ repos, deleteRepo }) => {
               Latest Release: {repo.latestRelease}
             </p>
           </div>
+
           {confirmDelete === repo.id ? (
-            <div className="flex space-x-2">
+            <div className="flex gap-2">
               <button
-                onClick={() => deleteRepo(repo.id)}
+                onClick={() => {
+                  deleteRepo(repo.id);
+                  setConfirmDelete(null);
+                }}
                 className="px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-700 transition-all"
               >
                 Yes
@@ -41,9 +46,9 @@ const RepoList = ({ repos, deleteRepo }) => {
           ) : (
             <button
               onClick={() => setConfirmDelete(repo.id)}
-              className="text-red-500 hover:text-red-400 transition text-2xl"
+              className="text-gray-400 hover:text-red-500 transition-all duration-200 transform hover:scale-110 focus:outline-none"
             >
-              🗑️
+              <FaTrashAlt className="text-lg" />
             </button>
           )}
         </div>

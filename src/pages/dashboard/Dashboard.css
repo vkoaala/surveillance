@@ -1,22 +1,119 @@
-.title {
-    font-size: 2rem;
-    font-weight: bold;
-    text-align: center;
-    margin-bottom: 1.5rem;
+/* Dashboard Header Background */
+.dashboard-header {
+    background-color: rgba(36, 40, 59, 0.9);
+    padding: 2rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    max-width: 700px;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
 }
 
-.input-field {
-    width: 100%;
-    padding: 1rem;
+/* Button Styling */
+.btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
     border-radius: 0.5rem;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-card);
-    color: var(--color-text);
-    outline: none;
-    transition: border-color 0.3s ease;
+    font-weight: 600;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
 }
 
-.input-field:focus {
-    border-color: var(--color-primary);
-    box-shadow: 0 0 8px var(--color-primary);
+.btn-primary {
+    background-color: var(--color-primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-2px);
+}
+
+.btn-secondary {
+    background-color: #4b5563;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #374151;
+    transform: translateY(-2px);
+}
+
+/* Search Bar Container */
+.search-container {
+    background-color: var(--color-card);
+    border: 1px solid var(--color-border);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    max-width: 500px;
+    margin: 0 auto 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Search Icon Styling */
+.search-icon {
+    color: #8892b0;
+    font-size: 1.2rem;
+}
+
+/* Input Field Styling */
+.search-bar {
+    width: 100%;
+    border: none !important;
+    /* Force remove border */
+    outline: none !important;
+    /* Force remove outline */
+    background: transparent;
+    color: var(--color-text);
+    font-size: 1rem;
+    font-family: inherit;
+    padding: 0.5rem 0;
+}
+
+/* Reset input default styles */
+input.search-bar {
+    all: unset;
+    width: 100%;
+    color: var(--color-text);
+    font-size: 1rem;
+    font-family: inherit;
+    padding: 0.75rem 0;
+}
+
+/* Placeholder Styling */
+.search-bar::placeholder {
+    color: #8892b0;
+    opacity: 0.8;
+    font-size: 0.95rem;
+}
+
+/* Repository Card Styling */
+.repo-card {
+    padding: 1.5rem;
+    background-color: var(--color-card);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease-in-out;
+}
+
+.repo-card:hover {
+    transform: translateY(-3px);
+}
+
+.repo-card a {
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.repo-card p {
+    color: var(--color-text);
+}
+
+/* Dark mode gradient background */
+body {
+    background: linear-gradient(180deg, #1a1b26 0%, #24283b 100%);
 }
