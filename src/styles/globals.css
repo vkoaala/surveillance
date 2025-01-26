@@ -1,0 +1,24 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #1a1b26;
+  --color-card: #24283b;
+  --color-text: #c0caf5;
+  --color-primary: #7aa2f7;
+  --color-border: #3b4261;
+}
+
+/* Apply global font and background */
+body {
+  font-family: "JetBrains Mono", monospace;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}

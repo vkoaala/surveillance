@@ -1,53 +1,53 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
-const ThemeContext = createContext();
-
+// Define themes
 const themes = {
-  tokyonight: {
-    bg: "#1a1b26",
-    card: "#24283b",
-    text: "#c0caf5",
-    primary: "#7aa2f7",
-    border: "#292e42",
+  tokyoNight: {
+    "--color-bg": "#1a1b26",
+    "--color-card": "#24283b",
+    "--color-text": "#c0caf5",
+    "--color-primary": "#7aa2f7",
+    "--color-primary-hover": "#3b82f6",
+    "--color-border": "#3b4261",
   },
-  "dark-mode": {
-    bg: "#0d1117",
-    card: "#161b22",
-    text: "#c9d1d9",
-    primary: "#58a6ff",
-    border: "#30363d",
+  dark: {
+    "--color-bg": "#181818",
+    "--color-card": "#252525",
+    "--color-text": "#e0e0e0",
+    "--color-primary": "#ff6b6b",
+    "--color-primary-hover": "#ff3b3b",
+    "--color-border": "#333",
   },
-  "light-mode": {
-    bg: "#f3f4f6",
-    card: "#ffffff",
-    text: "#1f2937",
-    primary: "#3b82f6",
-    border: "#d1d5db",
+  light: {
+    "--color-bg": "#ffffff",
+    "--color-card": "#f3f4f6",
+    "--color-text": "#1a1b26",
+    "--color-primary": "#2563eb",
+    "--color-primary-hover": "#1d4ed8",
+    "--color-border": "#d1d5db",
   },
 };
 
+const ThemeContext = createContext();
+
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(
-    localStorage.getItem("theme") || "tokyonight",
-  );
+  const storedTheme = localStorage.getItem("theme") || "tokyoNight";
+  const [theme, setTheme] = useState(storedTheme);
 
   useEffect(() => {
-    const selectedTheme = themes[theme];
-    Object.keys(selectedTheme).forEach((key) => {
-      document.documentElement.style.setProperty(
-        `--color-${key}`,
-        selectedTheme[key],
-      );
-    });
+    applyTheme(theme);
   }, [theme]);
 
-  const updateTheme = (newTheme) => {
-    setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
+  const applyTheme = (selectedTheme) => {
+    const themeVariables = themes[selectedTheme] || themes.tokyoNight;
+    Object.entries(themeVariables).forEach(([key, value]) => {
+      document.documentElement.style.setProperty(key, value);
+    });
+    localStorage.setItem("theme", selectedTheme);
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, updateTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );
