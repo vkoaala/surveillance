@@ -22,29 +22,22 @@ const Dashboard = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Function to add a repository safely
-  const addRepository = (repoName) => {
-    if (!repoName.trim()) return; // Avoid empty repo name
+  const addRepository = (repoUrl) => {
     setRepos((prevRepos) => [
       ...prevRepos,
       {
         id: Date.now(),
-        name: repoName.trim(),
+        name: repoUrl.split("/").slice(-2).join("/"),
         latestRelease: "N/A",
-        url: `https://github.com/${repoName.trim()}`,
+        url: repoUrl,
       },
     ]);
     setIsAdding(false);
   };
 
-  // Function to delete a repository
-  const deleteRepo = (id) => {
-    setRepos(repos.filter((repo) => repo.id !== id));
-  };
-
   return (
     <div className="flex flex-col min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
-      <div className="card max-w-2xl mx-auto text-center mt-10">
+      <div className="card max-w-4xl mx-auto text-center mt-10">
         <h1 className="text-4xl font-extrabold text-[var(--color-primary)]">
           Dashboard
         </h1>
@@ -54,10 +47,11 @@ const Dashboard = () => {
       </div>
 
       <div className="container">
-        <div className="flex justify-center gap-4 mb-8">
+        {/* Buttons Section */}
+        <div className="flex justify-center gap-4 mb-6">
           <button
             onClick={() => setIsAdding(true)}
-            className="btn btn-primary flex items-center gap-2"
+            className="btn btn-primary flex items-center gap-2 transition-transform"
           >
             <FaPlus /> Add Repository
           </button>
@@ -78,6 +72,10 @@ const Dashboard = () => {
           />
         </div>
 
+        {/* Separator Line */}
+        <div className="border-t border-[var(--color-border)] mb-6"></div>
+
+        {/* AddRepoModal */}
         {isAdding && (
           <AddRepoModal
             setIsAdding={setIsAdding}
@@ -85,12 +83,12 @@ const Dashboard = () => {
           />
         )}
 
-        {/* Pass deleteRepo function with error-proof filtering */}
+        {/* Repo List */}
         <RepoList
           repos={repos.filter((repo) =>
-            repo?.name?.toLowerCase().includes(searchTerm.toLowerCase()),
+            repo.name.toLowerCase().includes(searchTerm.toLowerCase()),
           )}
-          deleteRepo={deleteRepo}
+          deleteRepo={(id) => setRepos(repos.filter((repo) => repo.id !== id))}
         />
       </div>
     </div>
