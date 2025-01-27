@@ -29,18 +29,24 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
   };
 
   const handleAddRepo = () => {
+    setError(""); // Clear previous errors
     setIsLoading(true);
-    setTimeout(() => {
-      const validRepoUrl = validateRepoInput(newRepo);
-      if (!validRepoUrl) {
-        setError("Please enter a valid GitHub repository URL.");
-        setIsLoading(false);
-        return;
-      }
-      addRepository(validRepoUrl);
-      setNewRepo("");
+
+    const validRepoUrl = validateRepoInput(newRepo);
+    if (!validRepoUrl) {
+      setError("Please enter a valid GitHub repository URL.");
       setIsLoading(false);
-    }, 1500);
+      return;
+    }
+
+    addRepository(validRepoUrl);
+    setNewRepo("");
+    setIsLoading(false);
+  };
+
+  const handleInputChange = (e) => {
+    setNewRepo(e.target.value);
+    setError(""); // Clear error on change
   };
 
   return (
@@ -50,9 +56,11 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
           type="text"
           placeholder="Enter GitHub repository (e.g., owner/repo)"
           value={newRepo}
-          onChange={(e) => setNewRepo(e.target.value)}
+          onChange={handleInputChange}
           className={`flex-grow h-12 px-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${
-            error ? "border-red-500" : "border-[var(--color-border)]"
+            error
+              ? "border-[var(--color-primary)]"
+              : "border-[var(--color-border)]"
           }`}
           autoFocus
         />

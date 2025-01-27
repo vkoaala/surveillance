@@ -1,6 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import RepoList from "@/components/RepoList";
 import AddRepoModal from "@/components/modals/AddRepoModal";
+import Toast from "@/components/ui/Toast";
 import { FaPlus, FaSyncAlt, FaSearch } from "react-icons/fa";
 import debounce from "lodash/debounce";
 
@@ -22,10 +23,10 @@ const Dashboard = () => {
 
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [toast, setToast] = useState(null);
   const [visibleRepos, setVisibleRepos] = useState(5);
 
-  // Optimized function to add a repository
-  const addRepository = useCallback((repoUrl) => {
+  const addRepository = (repoUrl) => {
     setRepos((prevRepos) => [
       ...prevRepos,
       {
@@ -36,25 +37,32 @@ const Dashboard = () => {
       },
     ]);
     setIsAdding(false);
-  }, []);
+    setToast({ type: "success", message: "Repository added successfully!" });
+  };
 
-  // Optimized function to delete a repository
-  const deleteRepo = useCallback((id) => {
+  const deleteRepo = (id) => {
     setRepos((prevRepos) => prevRepos.filter((repo) => repo.id !== id));
-  }, []);
+    setToast({ type: "error", message: "Repository deleted successfully!" });
+  };
 
-  // Debounced search input to reduce excessive re-renders
   const handleSearchChange = debounce((value) => {
     setSearchTerm(value);
   }, 300);
 
-  // Load more repositories in batches of 5
   const loadMoreRepos = () => {
     setVisibleRepos((prev) => prev + 5);
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
+
       <div className="card max-w-5xl mx-auto text-center mt-10 p-8">
         <h1 className="text-5xl font-extrabold text-[var(--color-primary)]">
           Dashboard
@@ -69,7 +77,7 @@ const Dashboard = () => {
         <div className="flex justify-center gap-6 mb-8">
           <button
             onClick={() => setIsAdding(true)}
-            className="btn btn-primary flex items-center gap-2 transition-transform"
+            className="btn btn-primary flex items-center gap-2"
           >
             <FaPlus /> Add Repository
           </button>
@@ -100,11 +108,9 @@ const Dashboard = () => {
         )}
 
         <RepoList
-          repos={repos
-            .slice(0, visibleRepos)
-            .filter((repo) =>
-              repo.name.toLowerCase().includes(searchTerm.toLowerCase()),
-            )}
+          repos={repos.filter((repo) =>
+            repo.name.toLowerCase().includes(searchTerm.toLowerCase()),
+          )}
           deleteRepo={deleteRepo}
         />
 

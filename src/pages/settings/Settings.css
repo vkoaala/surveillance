@@ -1,4 +1,5 @@
 /* Scoped styles for the Settings page */
+/* Base layout adjustments */
 .settings {
     display: flex;
     flex-direction: column;
@@ -7,7 +8,7 @@
     padding: 3rem 1.5rem;
 }
 
-/* Container styling to match the theme */
+/* Card and container styling */
 .settings .container {
     max-width: 700px;
     width: 100%;
@@ -18,7 +19,7 @@
     margin-top: 2rem;
 }
 
-/* Title styling */
+/* Header section */
 .settings .title {
     font-size: 2.2rem;
     font-weight: 700;
@@ -27,7 +28,7 @@
     margin-bottom: 1.5rem;
 }
 
-/* Label styling */
+/* Form labels */
 .settings .label {
     font-size: 1rem;
     font-weight: 600;
@@ -36,12 +37,7 @@
     display: block;
 }
 
-/* Form group spacing */
-.settings .form-group {
-    margin-bottom: 1.5rem;
-}
-
-/* Input field styles */
+/* Form input fields */
 .settings .input-field {
     width: 100%;
     padding: 1rem;
@@ -64,7 +60,7 @@
     font-style: italic;
 }
 
-/* Button group to align buttons */
+/* Button styles */
 .settings .btn-group {
     display: flex;
     justify-content: space-between;
@@ -72,7 +68,6 @@
     margin-top: 1.5rem;
 }
 
-/* Primary button styling */
 .settings .btn-primary {
     flex: 1;
     background-color: var(--color-primary);
@@ -89,7 +84,6 @@
     transform: translateY(-2px);
 }
 
-/* Secondary button styling */
 .settings .btn-secondary {
     flex: 1;
     background-color: #6b7280;
@@ -105,7 +99,7 @@
     background-color: #4b5563;
 }
 
-/* Alert messages */
+/* Success message styling */
 .settings .alert {
     padding: 1rem;
     border-radius: 0.5rem;
@@ -122,4 +116,11 @@
 .settings .alert-error {
     background-color: #ef4444;
     color: white;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .settings .container {
+        padding: 1.5rem;
+    }
 }
