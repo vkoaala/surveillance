@@ -1,8 +1,23 @@
 import { useState } from "react";
-import { FaTrashAlt } from "react-icons/fa";
+import { FaTrashAlt, FaCheck, FaTimes } from "react-icons/fa";
+import { useTheme } from "@/context/ThemeContext";
 
 const RepoList = ({ repos, deleteRepo }) => {
-  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(null);
+  const { theme } = useTheme(); // Get the current theme
+
+  const handleConfirmDelete = (id, confirmed) => {
+    if (confirmed) {
+      deleteRepo(id);
+    }
+    setConfirmingDelete(null); // Reset the confirmation after action
+  };
+
+  // Get theme colors based on the current theme
+  const buttonStyles = {
+    yes: `bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]`,
+    no: `bg-[var(--color-border)] text-[var(--color-text)] hover:bg-[var(--color-border-dark)]`,
+  };
 
   return (
     <div className="space-y-4 mt-6">
@@ -25,32 +40,33 @@ const RepoList = ({ repos, deleteRepo }) => {
             </p>
           </div>
 
-          {confirmDelete === repo.id ? (
-            <div className="flex gap-2">
+          <div className="flex items-center space-x-4">
+            {confirmingDelete === repo.id ? (
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => handleConfirmDelete(repo.id, true)}
+                  className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-all ${buttonStyles.yes}`}
+                >
+                  <FaCheck />
+                  <span>Delete</span>
+                </button>
+                <button
+                  onClick={() => handleConfirmDelete(repo.id, false)}
+                  className={`px-4 py-2 rounded-lg flex items-center space-x-2 transition-all ${buttonStyles.no}`}
+                >
+                  <FaTimes />
+                  <span>Cancel</span>
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={() => {
-                  deleteRepo(repo.id);
-                  setConfirmDelete(null);
-                }}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg shadow hover:bg-red-700 transition-all"
+                onClick={() => setConfirmingDelete(repo.id)}
+                className="text-gray-400 hover:text-red-500 transition-all duration-200 transform hover:scale-110 focus:outline-none"
               >
-                Yes
+                <FaTrashAlt className="text-lg" />
               </button>
-              <button
-                onClick={() => setConfirmDelete(null)}
-                className="px-4 py-2 bg-gray-600 text-white rounded-lg shadow hover:bg-gray-800 transition-all"
-              >
-                No
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirmDelete(repo.id)}
-              className="text-gray-400 hover:text-red-500 transition-all duration-200 transform hover:scale-110 focus:outline-none"
-            >
-              <FaTrashAlt className="text-lg" />
-            </button>
-          )}
+            )}
+          </div>
         </div>
       ))}
     </div>

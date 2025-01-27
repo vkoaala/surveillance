@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { useTheme } from "@/context/ThemeContext";
 
 const AddRepoModal = ({ setIsAdding, addRepository }) => {
-  const { theme } = useTheme(); // Get current theme
   const [newRepo, setNewRepo] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -19,7 +18,6 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
     const trimmedInput = input.trim();
     const fullUrlPattern =
       /^(https:\/\/)?(www\.)?github\.com\/([\w-]+\/[\w.-]+)$/;
-    const repoPathPattern = /^([\w-]+\/[\w.-]+)$/;
 
     if (fullUrlPattern.test(trimmedInput)) {
       return trimmedInput.startsWith("http")
@@ -27,37 +25,22 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
         : `https://${trimmedInput.replace(/^www\./, "")}`;
     }
 
-    if (repoPathPattern.test(trimmedInput)) {
-      return `https://github.com/${trimmedInput}`;
-    }
-
-    if (trimmedInput.includes("gitub.com")) {
-      return "Did you mean 'github.com'?";
-    }
-
     return null;
   };
 
   const handleAddRepo = () => {
-    const validRepoUrl = validateRepoInput(newRepo);
-    if (!validRepoUrl) {
-      showErrorToast("Please enter a valid GitHub repository URL.");
-      return;
-    }
-    addRepository(validRepoUrl);
-    setNewRepo("");
-  };
-
-  const showErrorToast = (message) => {
-    setError(message);
-    setTimeout(() => setError(""), 3000);
-  };
-
-  // Theme-based styles
-  const toastStyles = {
-    tokyoNight: "bg-[#7aa2f7] text-[#1a1b26]", // Blue background, dark text
-    dark: "bg-[#ff6b6b] text-[#181818]", // Red background, dark text
-    light: "bg-[#2563eb] text-white", // Blue background, white text
+    setIsLoading(true);
+    setTimeout(() => {
+      const validRepoUrl = validateRepoInput(newRepo);
+      if (!validRepoUrl) {
+        setError("Please enter a valid GitHub repository URL.");
+        setIsLoading(false);
+        return;
+      }
+      addRepository(validRepoUrl);
+      setNewRepo("");
+      setIsLoading(false);
+    }, 1500);
   };
 
   return (
@@ -68,14 +51,21 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
           placeholder="Enter GitHub repository (e.g., owner/repo)"
           value={newRepo}
           onChange={(e) => setNewRepo(e.target.value)}
-          className="flex-grow h-12 px-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border border-[var(--color-border)]"
+          className={`flex-grow h-12 px-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${
+            error ? "border-red-500" : "border-[var(--color-border)]"
+          }`}
           autoFocus
         />
         <button
           onClick={handleAddRepo}
-          className="px-6 py-3 bg-[var(--color-primary)] text-white rounded-lg shadow-md hover:bg-[var(--color-primary-hover)] transition-all"
+          disabled={isLoading}
+          className={`px-6 py-3 rounded-lg shadow-md transition-all ${
+            isLoading
+              ? "bg-gray-500 cursor-not-allowed"
+              : "bg-[var(--color-primary)] text-white"
+          }`}
         >
-          Save
+          {isLoading ? "Adding..." : "Save"}
         </button>
         <button
           onClick={() => setIsAdding(false)}
@@ -85,11 +75,8 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
         </button>
       </div>
 
-      {/* Themed Toast Notification (Aligned Right) */}
       {error && (
-        <div
-          className={`fixed top-[100px] right-10 py-3 px-6 rounded-lg shadow-lg ${toastStyles[theme]}`}
-        >
+        <div className="fixed top-[100px] right-10 bg-red-500 text-white py-3 px-6 rounded-lg shadow-lg">
           {error}
         </div>
       )}
