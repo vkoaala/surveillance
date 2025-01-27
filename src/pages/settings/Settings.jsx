@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
+import "@/pages/settings/Settings.css";
 
 const Settings = () => {
   const { theme, setTheme } = useTheme();
@@ -23,23 +24,24 @@ const Settings = () => {
     setTimeout(() => setSaved(false), 3000);
   };
 
+  const handleReset = () => {
+    setSelectedTheme("tokyoNight");
+    setCronSchedule("*/5 * * * *");
+  };
+
   return (
-    <div className="flex flex-col items-center justify-start min-h-screen pt-20">
-      <div className="bg-[var(--color-card)] p-10 rounded-lg shadow-lg w-full max-w-2xl">
-        <h2 className="text-2xl font-bold text-[var(--color-text)] text-center mb-6">
-          Settings
-        </h2>
+    <div className="settings">
+      <div className="container">
+        <h2 className="title">Settings</h2>
 
         {saved && (
-          <div className="bg-green-500 text-white text-center p-3 mb-4 rounded">
+          <div className="alert alert-success">
             Settings saved successfully!
           </div>
         )}
 
-        <div className="mb-6">
-          <label className="block text-[var(--color-text)] font-medium mb-2">
-            Theme:
-          </label>
+        <div className="form-group">
+          <label className="label">Theme:</label>
           <select
             value={selectedTheme}
             onChange={(e) => setSelectedTheme(e.target.value)}
@@ -51,10 +53,8 @@ const Settings = () => {
           </select>
         </div>
 
-        <div className="mb-6">
-          <label className="block text-[var(--color-text)] font-medium mb-2">
-            Monitor Schedule (Cron):
-          </label>
+        <div className="form-group">
+          <label className="label">Monitor Schedule (Cron):</label>
           <input
             type="text"
             className="input-field"
@@ -64,9 +64,14 @@ const Settings = () => {
           />
         </div>
 
-        <button onClick={handleSave} className="btn btn-primary w-full text-lg">
-          Save Changes
-        </button>
+        <div className="btn-group">
+          <button onClick={handleSave} className="btn-primary">
+            Save Settings
+          </button>
+          <button onClick={handleReset} className="btn-secondary">
+            Reset to Default
+          </button>
+        </div>
       </div>
     </div>
   );

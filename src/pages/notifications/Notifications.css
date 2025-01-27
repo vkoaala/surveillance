@@ -1,84 +1,146 @@
-.label {
+/* General container layout */
+.notifications {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 3rem 1.5rem;
+}
+
+/* Centering and spacing */
+.notifications .container {
+    max-width: 700px;
+    width: 100%;
+    background-color: var(--color-card);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    padding: 3rem;
+    margin-top: 2rem;
+}
+
+/* Title Styling */
+.notifications .title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Label styling */
+.notifications .label {
     font-size: 1rem;
     font-weight: 600;
     color: var(--color-text);
-    margin-top: 1rem;
+    margin-bottom: 0.75rem;
     display: block;
 }
 
-.input-field {
+/* Input field styling */
+.notifications .input-field {
     width: 100%;
     padding: 1rem;
+    border: 2px solid var(--color-border);
     border-radius: 0.5rem;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-card);
+    background-color: rgba(36, 40, 59, 0.9);
     color: var(--color-text);
     outline: none;
-    transition: border-color 0.3s ease;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+    margin-bottom: 1.5rem;
 }
 
-.input-field:focus {
+.notifications .input-field:focus {
     border-color: var(--color-primary);
-    box-shadow: 0 0 8px var(--color-primary);
+    box-shadow: 0 0 12px var(--color-primary);
 }
 
-.btn-group {
+.notifications .input-field::placeholder {
+    color: rgba(192, 202, 245, 0.5);
+    font-style: italic;
+}
+
+/* Buttons container */
+.notifications .btn-group {
     display: flex;
+    justify-content: space-between;
     gap: 1rem;
-    margin-top: 1.5rem;
+    margin-top: 1rem;
 }
 
-.btn-primary {
+/* Button primary styling */
+.notifications .btn-primary {
     flex: 1;
-    padding: 1rem;
     background-color: var(--color-primary);
     color: white;
     border-radius: 0.5rem;
     font-weight: bold;
+    padding: 1rem;
+    text-align: center;
     transition: all 0.3s ease-in-out;
 }
 
-.btn-primary:hover {
+.notifications .btn-primary:hover {
     background-color: var(--color-primary-hover);
+    transform: translateY(-2px);
 }
 
-.btn-secondary {
+/* Button secondary styling (Test Webhook button) */
+.notifications .btn-secondary {
     flex: 1;
-    padding: 1rem;
     background-color: #6b7280;
     color: white;
     border-radius: 0.5rem;
     font-weight: bold;
+    padding: 1rem;
+    text-align: center;
     transition: all 0.3s ease-in-out;
 }
 
-.btn-secondary:hover {
+.notifications .btn-secondary:hover {
     background-color: #4b5563;
 }
 
-.subtitle {
+/* Logs container */
+.notifications .logs {
+    margin-top: 2rem;
+    padding: 2rem;
+    background: var(--color-card);
+    border: 2px solid var(--color-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+/* Log title */
+.notifications .logs-title {
     font-size: 1.5rem;
     font-weight: bold;
-    margin-top: 2rem;
+    margin-bottom: 1rem;
     color: var(--color-primary);
 }
 
-.logs {
-    margin-top: 1rem;
-    padding: 1rem;
-    background: var(--color-card);
-    border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
+/* Empty log message */
+.notifications .log-empty {
+    font-size: 1rem;
+    color: rgba(192, 202, 245, 0.6);
+    text-align: center;
 }
 
-.log-item {
+/* Log item */
+.notifications .log-item {
     font-size: 1rem;
     color: var(--color-text);
     border-bottom: 1px solid var(--color-border);
     padding: 0.75rem 0;
 }
 
-.log-time {
+/* Last log item with no border */
+.notifications .log-item:last-child {
+    border-bottom: none;
+}
+
+/* Log timestamp */
+.notifications .log-time {
     font-weight: bold;
     color: var(--color-primary);
 }

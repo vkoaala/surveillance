@@ -36,10 +36,8 @@ const Notifications = () => {
 
   return (
     <div className="notifications">
-      <div className="container max-w-2xl mx-auto bg-[var(--color-card)] p-8 rounded-lg shadow-md">
-        <h1 className="title text-center text-3xl font-bold text-[var(--color-primary)]">
-          Notifications
-        </h1>
+      <div className="container">
+        <h1 className="title">Notifications</h1>
 
         {alert.message && (
           <div
@@ -65,7 +63,7 @@ const Notifications = () => {
           className="input-field"
         />
 
-        <label className="label">Custom Discord URL (Optional):</label>
+        <label className="label">Custom Webhook URL:</label>
         <input
           type="text"
           value={customWebhookUrl}
@@ -85,6 +83,25 @@ const Notifications = () => {
           <button onClick={handleSaveSettings} className="btn-primary">
             Save Settings
           </button>
+          <button
+            onClick={() => alert("Webhook Test Sent!")}
+            className="btn-secondary"
+          >
+            Test Webhook
+          </button>
+        </div>
+
+        <div className="logs">
+          <h3 className="logs-title">Webhook Logs</h3>
+          {logs.length === 0 ? (
+            <p className="log-empty">No logs available</p>
+          ) : (
+            logs.map((log, index) => (
+              <div key={index} className="log-item">
+                <span className="log-time">{log.time}</span>: {log.message}
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>

@@ -1,75 +1,125 @@
-.settings-page {
+/* Scoped styles for the Settings page */
+.settings {
     display: flex;
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
-    padding: 1.5rem;
+    padding: 3rem 1.5rem;
 }
 
-.settings-card {
-    background-color: var(--color-card);
-    padding: 2rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-    max-width: 30rem;
+/* Container styling to match the theme */
+.settings .container {
+    max-width: 700px;
     width: 100%;
+    background-color: var(--color-card);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    padding: 3rem;
+    margin-top: 2rem;
 }
 
-.title {
-    font-size: 1.75rem;
+/* Title styling */
+.settings .title {
+    font-size: 2.2rem;
     font-weight: 700;
-    text-align: center;
     color: var(--color-primary);
+    text-align: center;
     margin-bottom: 1.5rem;
 }
 
-.label {
+/* Label styling */
+.settings .label {
     font-size: 1rem;
     font-weight: 600;
     color: var(--color-text);
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.75rem;
     display: block;
 }
 
-.input-field {
+/* Form group spacing */
+.settings .form-group {
+    margin-bottom: 1.5rem;
+}
+
+/* Input field styles */
+.settings .input-field {
     width: 100%;
-    padding: 0.75rem;
+    padding: 1rem;
+    border: 2px solid var(--color-border);
     border-radius: 0.5rem;
-    border: 1px solid var(--color-border);
-    background-color: var(--color-card);
+    background-color: rgba(36, 40, 59, 0.9);
     color: var(--color-text);
     outline: none;
-    transition: border-color 0.3s ease;
+    font-size: 1rem;
+    transition: all 0.3s ease;
 }
 
-.input-field:focus {
+.settings .input-field:focus {
     border-color: var(--color-primary);
-    box-shadow: 0 0 8px var(--color-primary);
+    box-shadow: 0 0 12px var(--color-primary);
 }
 
-.btn-primary {
-    padding: 1rem;
+.settings .input-field::placeholder {
+    color: rgba(192, 202, 245, 0.5);
+    font-style: italic;
+}
+
+/* Button group to align buttons */
+.settings .btn-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+/* Primary button styling */
+.settings .btn-primary {
+    flex: 1;
     background-color: var(--color-primary);
     color: white;
     border-radius: 0.5rem;
     font-weight: bold;
-    cursor: pointer;
-    transition: all 0.3s ease-in-out;
+    padding: 1rem;
     text-align: center;
+    transition: all 0.3s ease-in-out;
 }
 
-.btn-primary:hover {
+.settings .btn-primary:hover {
     background-color: var(--color-primary-hover);
+    transform: translateY(-2px);
 }
 
-.form-group {
+/* Secondary button styling */
+.settings .btn-secondary {
+    flex: 1;
+    background-color: #6b7280;
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: bold;
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+}
+
+.settings .btn-secondary:hover {
+    background-color: #4b5563;
+}
+
+/* Alert messages */
+.settings .alert {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    font-weight: bold;
     margin-bottom: 1.5rem;
 }
 
-.alert {
-    font-size: 1rem;
-    font-weight: 500;
-    text-align: center;
-    border-radius: 0.5rem;
-    padding: 1rem;
+.settings .alert-success {
+    background-color: #22c55e;
+    color: white;
+}
+
+.settings .alert-error {
+    background-color: #ef4444;
+    color: white;
 }
