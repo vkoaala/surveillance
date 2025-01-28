@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #1a1b26;
+  --color-card: #24283b;
+  --color-text: #c0caf5;
+  --color-primary: #7aa2f7;
+  --color-primary-hover: #3b82f6;
+  --color-border: #3b4261;
+}
+
+/* Global styles */
+body {
+  @apply bg-[var(--color-bg)] text-[var(--color-text)] font-mono;
+}
+
+.container {
+  @apply max-w-6xl mx-auto p-8;
+}
+
+/* Buttons */
+.btn {
+  @apply px-6 py-3 rounded-lg font-bold transition-all shadow-md;
+}
+
+.btn-primary {
+  @apply bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:-translate-y-1;
+}
+
+.btn-secondary {
+  @apply bg-gray-600 text-white hover:bg-gray-700 hover:-translate-y-1;
+}
+
+/* Input Fields */
+.input-field {
+  @apply w-full h-14 p-4 pl-14 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+}
+
+.input-field-no-icon {
+  padding-left: 1rem;
+}
+
+/* Card Styling */
+.card {
+  @apply bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)];
+}
+
+/* Markdown Styling */
+.prose-invert {
+  @apply text-[var(--color-text)] leading-relaxed;
+}
+
+/* Headings */
+.prose-invert h1,
+.prose-invert h2,
+.prose-invert h3 {
+  @apply text-[var(--color-primary)] font-bold mt-4;
+}
+
+/* Lists */
+.prose-invert ul {
+  @apply list-disc pl-5;
+}
+
+.prose-invert ol {
+  @apply list-decimal pl-5;
+}
+
+/* Links */
+.prose-invert a {
+  @apply text-[var(--color-primary-hover)] underline;
+}
+
+/* Blockquote Styling */
+.prose-invert blockquote {
+  @apply border-l-4 border-[var(--color-primary)] pl-4 italic text-gray-400;
+}
+
+/* Code Block Styling */
+.prose-invert pre {
+  @apply bg-[var(--color-card)] text-[var(--color-primary)] p-4 rounded-lg overflow-x-auto;
+}
+
+.prose-invert pre code {
+  @apply bg-transparent text-[var(--color-primary)];
+}
+
+/* Inline Code Styling */
+.prose-invert code {
+  @apply bg-[var(--color-card)] text-[var(--color-primary)] px-1 rounded;
+}
+
+/* Scrollable Content (Dynamic Changelog Box) */
+.changelog-scroll {
+  max-height: 90%;
+  /* Allows dynamic adjustment with scrolling for very long content */
+  overflow-y: auto;
+  /* Enables vertical scrolling */
+  overflow-x: hidden;
+  /* Prevents horizontal scrolling */
+  padding-right: 10px;
+  /* Avoids scrollbar overlapping the text */
+  word-wrap: break-word;
+  /* Wraps long text */
+  word-break: break-word;
+  /* Breaks long words cleanly */
+}
+
+/* Styled Scrollbar */
+.changelog-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.changelog-scroll::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.changelog-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+.changelog-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}

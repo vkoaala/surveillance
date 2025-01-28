@@ -7,7 +7,8 @@ import Header from "@/components/layout/Header";
 const App = () => {
   return (
     <Router>
-      <Header />
+      {/* Header stays here globally */}
+      <Header showBanner={!localStorage.getItem("githubApiKey")} />
       <div className="container">
         <Routes>
           <Route path="/" element={<Dashboard />} />

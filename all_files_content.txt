@@ -1,0 +1,1714 @@
+
+### ./frontend/src/components/modals/AddRepoModal.jsx ###
+
+import { useState, useEffect } from "react";
+import { FaGithub, FaTag } from "react-icons/fa";
+
+const AddRepoModal = ({ setIsAdding, addRepository }) => {
+  const [newRepo, setNewRepo] = useState("");
+  const [currentVersion, setCurrentVersion] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const githubToken = localStorage.getItem("githubApiKey") || null;
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Enter") handleAddRepo();
+      if (e.key === "Escape") setIsAdding(false);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const validateRepoInput = (input) => {
+    const trimmedInput = input.trim();
+    const repoPattern = /^[\w-]+\/[\w.-]+$/;
+    const fullUrlPattern =
+      /^(https:\/\/)?(www\.)?github\.com\/([\w-]+\/[\w.-]+)$/;
+
+    if (fullUrlPattern.test(trimmedInput)) {
+      return trimmedInput.startsWith("http")
+        ? trimmedInput
+        : `https://${trimmedInput.replace(/^www\./, "")}`;
+    } else if (repoPattern.test(trimmedInput)) {
+      return `https://github.com/${trimmedInput}`;
+    }
+    return null;
+  };
+
+  const fetchRepoDetails = async (repoUrl) => {
+    try {
+      const repoNameMatch = repoUrl.match(/github\.com\/([\w-]+\/[\w.-]+)/);
+      if (!repoNameMatch) {
+        setError("Invalid GitHub repository URL.");
+        return null;
+      }
+
+      const repoName = repoNameMatch[1];
+      const headers = githubToken
+        ? { Authorization: `Bearer ${githubToken}` }
+        : {};
+
+      const response = await fetch(
+        `https://api.github.com/repos/${repoName}/releases/latest`,
+        { headers },
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        return { name: repoName, version: data.tag_name };
+      } else if (response.status === 404) {
+        return { name: repoName, version: "No releases found" };
+      } else {
+        throw new Error("Failed to fetch repository details.");
+      }
+    } catch (error) {
+      setError("Error fetching repository details.");
+      console.error(error);
+      return null;
+    }
+  };
+
+  const handleAddRepo = async () => {
+    setError("");
+    setIsLoading(true);
+
+    const validRepoUrl = validateRepoInput(newRepo);
+    if (!validRepoUrl) {
+      setError("Please enter a valid GitHub repository URL or owner/repo.");
+      setIsLoading(false);
+      return;
+    }
+
+    let repoDetails = { name: "", version: currentVersion.trim() || "latest" };
+    if (!currentVersion.trim()) {
+      const details = await fetchRepoDetails(validRepoUrl);
+      if (!details) {
+        setIsLoading(false);
+        return;
+      }
+      repoDetails = details;
+    }
+
+    const payload = {
+      url: validRepoUrl,
+      name: repoDetails.name,
+      version: repoDetails.version,
+    };
+
+    try {
+      await addRepository(payload);
+      setNewRepo("");
+      setCurrentVersion("");
+    } catch (error) {
+      setError("Failed to add repository.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="bg-[var(--color-card)] p-6 rounded-lg shadow-md border border-[var(--color-border)] flex flex-col gap-6 transition-all">
+      <div className="relative">
+        <FaGithub className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
+        <input
+          type="text"
+          placeholder="Enter GitHub repository (e.g., owner/repo)"
+          value={newRepo}
+          onChange={(e) => setNewRepo(e.target.value)}
+          className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${error
+              ? "border-[var(--color-primary)]"
+              : "border-[var(--color-border)]"
+            }`}
+          autoFocus
+        />
+      </div>
+
+      <div className="relative">
+        <FaTag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
+        <input
+          type="text"
+          placeholder="Enter version (e.g., v1.0.0) or leave empty for latest"
+          value={currentVersion}
+          onChange={(e) => setCurrentVersion(e.target.value)}
+          className="w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border border-[var(--color-border)]"
+        />
+      </div>
+
+      <div className="flex gap-4 justify-end">
+        <button
+          onClick={handleAddRepo}
+          disabled={isLoading}
+          className={`h-10 px-5 rounded-md shadow-md transition-all text-sm ${isLoading
+              ? "bg-gray-500 cursor-not-allowed"
+              : "bg-[var(--color-primary)] text-white"
+            }`}
+        >
+          {isLoading ? "Adding..." : "Save"}
+        </button>
+        <button
+          onClick={() => setIsAdding(false)}
+          className="h-10 px-5 bg-gray-600 text-white rounded-md shadow-md hover:bg-gray-700 transition-all text-sm"
+        >
+          Cancel
+        </button>
+      </div>
+      {error && <div className="text-red-500 text-sm text-center">{error}</div>}
+    </div>
+  );
+};
+
+export default AddRepoModal;
+
+### ./frontend/src/components/RepoList.jsx ###
+
+import { FaTrashAlt, FaRegFileAlt } from "react-icons/fa";
+import { useState } from "react";
+import ConfirmBox from "@/components/ui/ConfirmBox";
+
+const RepoList = ({ repos, deleteRepo, showChangelog }) => {
+  const [confirming, setConfirming] = useState(null);
+
+  const handleDelete = (id) => {
+    setConfirming(id);
+  };
+
+  const confirmDelete = async (id) => {
+    await deleteRepo(id);
+    setConfirming(null);
+  };
+
+  return (
+    <div className="space-y-4 mt-6">
+      {repos.map((repo) => (
+        <div
+          key={repo.ID}
+          className="bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)] flex justify-between items-center transition-all hover:-translate-y-1 hover:shadow-lg"
+        >
+          {/* Left Section: Repo Info */}
+          <div>
+            <a
+              href={repo.URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--color-primary)] font-bold text-lg hover:underline"
+            >
+              {repo.Name || "Unnamed Repository"}
+            </a>
+            <p className="text-sm text-gray-400">
+              <span className="font-semibold">Current:</span>{" "}
+              {repo.CurrentVersion || "N/A"}
+              <span className="mx-2">|</span>
+              <span className="font-semibold">Latest:</span>{" "}
+              {repo.LatestRelease || "N/A"}
+            </p>
+            <p className="text-xs text-gray-500">
+              <span className="font-semibold">Last Updated:</span>{" "}
+              {repo.LastUpdated || "N/A"}
+            </p>
+          </div>
+
+          {/* Right Section: Actions */}
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => showChangelog(repo.ID, repo.Name)}
+              className="text-[var(--color-text)] hover:text-[var(--color-primary)] transition-all"
+            >
+              <FaRegFileAlt className="text-lg" />
+            </button>
+            <button
+              onClick={() => handleDelete(repo.ID)}
+              className="text-gray-400 hover:text-red-500 transition-all duration-200 transform hover:scale-110 focus:outline-none"
+            >
+              <FaTrashAlt className="text-lg" />
+            </button>
+          </div>
+        </div>
+      ))}
+
+      {/* Confirm Delete Dialog */}
+      {confirming && (
+        <ConfirmBox
+          message="Are you sure you want to delete this repository?"
+          onConfirm={() => confirmDelete(confirming)}
+          onCancel={() => setConfirming(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default RepoList;
+
+### ./frontend/src/components/ui/ConfirmBox.jsx ###
+
+import { FaExclamationTriangle } from "react-icons/fa";
+
+const ConfirmBox = ({ message, onConfirm, onCancel }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div className="bg-[var(--color-card)] text-[var(--color-text)] p-6 rounded-lg shadow-lg max-w-sm w-full">
+        <div className="flex items-center mb-4">
+          <FaExclamationTriangle className="text-[var(--color-primary)] text-xl mr-3" />
+          <h3 className="font-bold text-lg">Confirm Action</h3>
+        </div>
+        <p className="mb-6 text-sm">{message}</p>
+        <div className="flex justify-end gap-4">
+          <button
+            onClick={onCancel}
+            className="btn btn-secondary px-4 py-2 text-sm"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="btn btn-primary px-4 py-2 text-sm"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ConfirmBox;
+
+### ./frontend/src/components/ui/Toast.jsx ###
+
+import { useState, useEffect } from "react";
+import { useTheme } from "@/context/ThemeContext";
+
+const Toast = ({ type, message, duration = 3000, onClose }) => {
+  const { theme } = useTheme();
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+      if (onClose) onClose();
+    }, duration);
+
+    return () => clearTimeout(timer);
+  }, [duration, onClose]);
+
+  if (!isVisible) return null;
+
+  const themeStyles = {
+    tokyoNight: {
+      bg: "bg-[var(--color-card)]",
+      border:
+        type === "success"
+          ? "border-[var(--color-primary)]"
+          : "border-[var(--color-border)]",
+      text: "text-[var(--color-text)]",
+    },
+    dark: {
+      bg: "bg-[var(--color-card)]",
+      border:
+        type === "success"
+          ? "border-[var(--color-primary)]"
+          : "border-[var(--color-border)]",
+      text: "text-[var(--color-text)]",
+    },
+    light: {
+      bg: "bg-[var(--color-card)]",
+      border:
+        type === "success"
+          ? "border-[var(--color-primary)]"
+          : "border-[var(--color-border-dark)]",
+      text: "text-[var(--color-text)]",
+    },
+  };
+
+  const currentTheme = themeStyles[theme] || themeStyles.tokyoNight;
+
+  return (
+    <div
+      className={`
+        fixed top-[100px] right-10 z-50 py-3 px-6 rounded-lg shadow-lg border-l-4 transition-all
+        ${currentTheme.bg} ${currentTheme.border} ${currentTheme.text}
+      `}
+    >
+      {message}
+    </div>
+  );
+};
+
+export default Toast;
+
+### ./frontend/src/components/layout/Header.jsx ###
+
+import { Link, useLocation } from "react-router-dom";
+import { FaHome, FaBell, FaCog } from "react-icons/fa";
+import SurveillanceLogo from "@/components/layout/SurveillanceLogo";
+
+const Header = ({ showBanner }) => {
+  const location = useLocation();
+  const isActive = (path) => location.pathname === path;
+
+  return (
+    <header className="w-full bg-[var(--color-card)] shadow-md">
+      <div className="mx-auto flex items-center justify-between p-5">
+        <SurveillanceLogo />
+        <nav className="flex items-center space-x-6">
+          <Link
+            to="/"
+            className={`transition text-2xl ${isActive("/")
+                ? "text-[var(--color-primary)]"
+                : "text-[var(--color-text)]"
+              }`}
+          >
+            <FaHome />
+          </Link>
+          <Link
+            to="/notifications"
+            className={`transition text-2xl ${isActive("/notifications")
+                ? "text-[var(--color-primary)]"
+                : "text-[var(--color-text)]"
+              }`}
+          >
+            <FaBell />
+          </Link>
+          <Link
+            to="/settings"
+            className={`transition text-2xl ${isActive("/settings")
+                ? "text-[var(--color-primary)]"
+                : "text-[var(--color-text)]"
+              }`}
+          >
+            <FaCog />
+          </Link>
+        </nav>
+      </div>
+      {showBanner && (
+        <div className="bg-blue-800 text-blue-200 p-3 text-center">
+          Warning: You have not set a GitHub API key. Some features may not
+          work. Please configure it in{" "}
+          <Link to="/settings" className="underline">
+            Settings
+          </Link>
+          .
+        </div>
+      )}
+    </header>
+  );
+};
+
+export default Header;
+
+### ./frontend/src/components/layout/SurveillanceLogo.jsx ###
+
+const SurveillanceLogo = () => {
+  return (
+    <div className="flex items-center space-x-2 text-4xl">
+      <span>📡</span>
+      <span className="text-[var(--color-primary)] font-bold">
+        Surveillance
+      </span>
+    </div>
+  );
+};
+
+export default SurveillanceLogo;
+
+### ./frontend/src/main.jsx ###
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.jsx";
+import { ThemeProvider } from "@/context/ThemeContext";
+import "@/styles/globals.css";
+
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ThemeProvider>
+    <App />
+  </ThemeProvider>,
+);
+
+### ./frontend/src/App.jsx ###
+
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Dashboard from "@/pages/dashboard/Dashboard";
+import Settings from "@/pages/settings/Settings";
+import Notifications from "@/pages/notifications/Notifications";
+import Header from "@/components/layout/Header";
+
+const App = () => {
+  return (
+    <Router>
+      {/* Header stays here globally */}
+      <Header showBanner={!localStorage.getItem("githubApiKey")} />
+      <div className="container">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/notifications" element={<Notifications />} />
+        </Routes>
+      </div>
+    </Router>
+  );
+};
+
+export default App;
+
+### ./frontend/src/context/ThemeContext.jsx ###
+
+import { createContext, useContext, useEffect, useState } from "react";
+
+// Define themes
+const themes = {
+  tokyoNight: {
+    "--color-bg": "#1a1b26",
+    "--color-card": "#24283b",
+    "--color-text": "#c0caf5",
+    "--color-primary": "#7aa2f7",
+    "--color-primary-hover": "#3b82f6",
+    "--color-border": "#3b4261",
+  },
+  dark: {
+    "--color-bg": "#181818",
+    "--color-card": "#252525",
+    "--color-text": "#e0e0e0",
+    "--color-primary": "#ff6b6b",
+    "--color-primary-hover": "#ff3b3b",
+    "--color-border": "#333",
+  },
+  light: {
+    "--color-bg": "#ffffff",
+    "--color-card": "#f3f4f6",
+    "--color-text": "#1a1b26",
+    "--color-primary": "#2563eb",
+    "--color-primary-hover": "#1d4ed8",
+    "--color-border": "#d1d5db",
+  },
+};
+
+const ThemeContext = createContext();
+
+export const ThemeProvider = ({ children }) => {
+  const storedTheme = localStorage.getItem("theme") || "tokyoNight";
+  const [theme, setTheme] = useState(storedTheme);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  const applyTheme = (selectedTheme) => {
+    const themeVariables = themes[selectedTheme] || themes.tokyoNight;
+    Object.entries(themeVariables).forEach(([key, value]) => {
+      document.documentElement.style.setProperty(key, value);
+    });
+    localStorage.setItem("theme", selectedTheme);
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+export const useTheme = () => useContext(ThemeContext);
+
+### ./frontend/src/config/api.js ###
+
+export const API_BASE_URL = "http://localhost:8080"; // Backend base URL
+
+export const fetchAPI = async (endpoint, options = {}) => {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.error || "API request failed");
+  }
+  return await response.json();
+};
+
+### ./frontend/src/styles/globals.css ###
+
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #1a1b26;
+  --color-card: #24283b;
+  --color-text: #c0caf5;
+  --color-primary: #7aa2f7;
+  --color-primary-hover: #3b82f6;
+  --color-border: #3b4261;
+}
+
+/* Global styles */
+body {
+  @apply bg-[var(--color-bg)] text-[var(--color-text)] font-mono;
+}
+
+.container {
+  @apply max-w-6xl mx-auto p-8;
+}
+
+/* Buttons */
+.btn {
+  @apply px-6 py-3 rounded-lg font-bold transition-all shadow-md;
+}
+
+.btn-primary {
+  @apply bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:-translate-y-1;
+}
+
+.btn-secondary {
+  @apply bg-gray-600 text-white hover:bg-gray-700 hover:-translate-y-1;
+}
+
+/* Input Fields */
+.input-field {
+  @apply w-full h-14 p-4 pl-14 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+}
+
+.input-field-no-icon {
+  padding-left: 1rem;
+}
+
+/* Card Styling */
+.card {
+  @apply bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)];
+}
+
+### ./frontend/src/pages/notifications/Notifications.css ###
+
+/* Scrollable logs with custom scrollbar */
+.card.max-h-64 {
+    max-height: 20rem;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-border) transparent;
+}
+
+.card.max-h-64::-webkit-scrollbar {
+    width: 8px;
+}
+
+.card.max-h-64::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.card.max-h-64::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 4px;
+}
+
+### ./frontend/src/pages/notifications/Notifications.jsx ###
+
+import { useState } from "react";
+import Toast from "@/components/ui/Toast";
+
+const Notifications = () => {
+  const defaultAvatarUrl = "https://emojicdn.elk.sh/📡?style=twitter"; // Default emoji avatar
+
+  const [webhookUrl, setWebhookUrl] = useState(
+    localStorage.getItem("discordWebhook") || "",
+  );
+  const [discordName, setDiscordName] = useState(
+    localStorage.getItem("discordName") || "Surveillance Bot",
+  );
+  const [discordAvatar, setDiscordAvatar] = useState(
+    localStorage.getItem("discordAvatar") || "",
+  );
+  const [message, setMessage] = useState(
+    "Surveillance notification is active!",
+  );
+  const [logs, setLogs] = useState(
+    () => JSON.parse(localStorage.getItem("webhookLogs")) || [],
+  );
+  const [toast, setToast] = useState(null);
+  const [errors, setErrors] = useState({});
+
+  const showToast = (type, msg) => {
+    setToast({ type, message: msg });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  // Validation function to allow standard image formats and the emoji URL
+  const validateAvatarUrl = (url) => {
+    const imageRegex = /\.(jpg|jpeg|png|gif|webp)$/;
+    const emojiCdnRegex = /^https:\/\/emojicdn\.elk\.sh\/[^?]+\?style=twitter$/;
+    return url === "" || imageRegex.test(url) || emojiCdnRegex.test(url);
+  };
+
+  const validateWebhookUrl = (url) => {
+    const discordWebhookRegex =
+      /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/;
+    return discordWebhookRegex.test(url);
+  };
+
+  const validateForm = () => {
+    let formErrors = {};
+
+    if (!webhookUrl || !validateWebhookUrl(webhookUrl)) {
+      formErrors.webhookUrl = "Invalid Discord webhook URL.";
+    }
+
+    if (discordAvatar && !validateAvatarUrl(discordAvatar)) {
+      formErrors.discordAvatar =
+        "Invalid image URL. Use jpg, png, gif, webp, or a valid emoji URL.";
+    }
+
+    if (!message.trim()) {
+      formErrors.message = "Message cannot be empty.";
+    }
+
+    setErrors(formErrors);
+    return Object.keys(formErrors).length === 0;
+  };
+
+  const handleSaveSettings = () => {
+    if (!validateForm()) return;
+
+    localStorage.setItem("discordWebhook", webhookUrl);
+    localStorage.setItem("discordName", discordName || "Surveillance Bot");
+    localStorage.setItem("discordAvatar", discordAvatar || defaultAvatarUrl);
+    showToast("success", "Settings saved successfully!");
+  };
+
+  const handleTestWebhook = async () => {
+    if (!validateForm()) return;
+
+    try {
+      const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: discordName || "Surveillance Bot",
+          avatar_url: discordAvatar || defaultAvatarUrl, // Use default if empty
+          content: message,
+        }),
+      });
+
+      if (!response.ok)
+        throw new Error(`HTTP ${response.status} – ${response.statusText}`);
+
+      const newLog = {
+        time: new Date().toLocaleString(),
+        message: `Test message sent: "${message}"`,
+      };
+      const updatedLogs = [newLog, ...logs];
+      setLogs(updatedLogs);
+      localStorage.setItem("webhookLogs", JSON.stringify(updatedLogs));
+
+      showToast("success", "Webhook test sent successfully!");
+    } catch (error) {
+      showToast("error", `Error sending webhook: ${error.message}`);
+    }
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      {toast && (
+        <Toast
+          type={toast.type}
+          message={toast.message}
+          onClose={() => setToast(null)}
+        />
+      )}
+
+      <div className="card max-w-4xl mx-auto text-center mt-10 p-8 shadow-lg rounded-2xl">
+        <h1 className="text-5xl font-extrabold text-[var(--color-primary)]">
+          Notifications
+        </h1>
+        <p className="text-gray-400 text-lg mt-2">
+          Configure your notification and webhook settings.
+        </p>
+      </div>
+
+      <div className="container max-w-4xl mx-auto p-6">
+        <div className="card p-8 mb-8 shadow-lg rounded-2xl">
+          <h2 className="text-2xl font-bold mb-6 text-[var(--color-primary)]">
+            Discord Settings
+          </h2>
+
+          <div className="space-y-6">
+            {/* Webhook URL */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Discord Webhook URL <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={webhookUrl}
+                onChange={(e) => setWebhookUrl(e.target.value)}
+                className="input-field input-field-no-icon"
+                placeholder="Enter Discord Webhook URL"
+              />
+              {errors.webhookUrl && (
+                <p className="text-red-500 text-sm mt-1">{errors.webhookUrl}</p>
+              )}
+            </div>
+
+            {/* Discord Name */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Discord Name (Optional)
+              </label>
+              <input
+                type="text"
+                value={discordName}
+                onChange={(e) => setDiscordName(e.target.value)}
+                className="input-field input-field-no-icon"
+                placeholder="Enter Discord Bot Name"
+              />
+            </div>
+
+            {/* Discord Avatar URL */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Discord Avatar URL (Optional)
+              </label>
+              <input
+                type="text"
+                value={discordAvatar}
+                onChange={(e) => setDiscordAvatar(e.target.value)}
+                className="input-field input-field-no-icon"
+                placeholder="Enter Discord Avatar URL"
+              />
+              {errors.discordAvatar && (
+                <p className="text-red-500 text-sm mt-1">
+                  {errors.discordAvatar}
+                </p>
+              )}
+            </div>
+
+            {/* Message */}
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Notification Message <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="input-field input-field-no-icon"
+                placeholder="Enter Notification Message"
+              />
+              {errors.message && (
+                <p className="text-red-500 text-sm mt-1">{errors.message}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-4 mt-8">
+            <button
+              onClick={handleSaveSettings}
+              className="btn btn-primary rounded-xl px-8 py-3"
+            >
+              Save Settings
+            </button>
+            <button
+              onClick={handleTestWebhook}
+              className="btn btn-secondary rounded-xl px-8 py-3"
+            >
+              Test Webhook
+            </button>
+          </div>
+        </div>
+
+        {/* Webhook Logs */}
+        <div className="card max-h-64 p-8 shadow-lg rounded-2xl overflow-y-auto">
+          <h3 className="text-xl font-bold mb-6 text-[var(--color-primary)]">
+            Webhook Logs
+          </h3>
+          {logs.length === 0 ? (
+            <p className="text-gray-400">No logs available</p>
+          ) : (
+            logs.map((log, index) => (
+              <div
+                key={index}
+                className="border-b border-[var(--color-border)] py-3"
+              >
+                <span className="font-bold text-[var(--color-primary)] mr-2">
+                  {log.time}
+                </span>
+                <span className="text-[var(--color-text)]">{log.message}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Notifications;
+
+### ./frontend/src/pages/dashboard/Dashboard.jsx ###
+
+import { useState, useEffect } from "react";
+import RepoList from "@/components/RepoList";
+import AddRepoModal from "@/components/modals/AddRepoModal";
+import { FaPlus, FaSyncAlt, FaSearch } from "react-icons/fa";
+import debounce from "lodash/debounce";
+import { fetchAPI } from "@/config/api";
+import ConfirmBox from "@/components/ui/ConfirmBox";
+
+const Dashboard = () => {
+  const [repos, setRepos] = useState([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filteredRepos, setFilteredRepos] = useState([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [changelog, setChangelog] = useState(null);
+  const [selectedRepo, setSelectedRepo] = useState(null);
+
+  // Fetch all repositories
+  const fetchRepositories = async () => {
+    try {
+      const data = await fetchAPI("/repositories");
+      setRepos(data);
+      setFilteredRepos(data);
+    } catch (error) {
+      console.error("Error fetching repositories:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchRepositories();
+  }, []);
+
+  // Add a new repository
+  const addRepository = async ({ url, name, version }) => {
+    try {
+      const newRepo = await fetchAPI("/repositories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, name, version }),
+      });
+      setRepos((prevRepos) => [...prevRepos, newRepo]);
+      setFilteredRepos((prevRepos) => [...prevRepos, newRepo]);
+    } catch (error) {
+      console.error("Error adding repository:", error);
+    }
+  };
+
+  // Delete a repository
+  const deleteRepo = async (id) => {
+    try {
+      await fetchAPI(`/repositories/${id}`, { method: "DELETE" });
+      setRepos((prevRepos) => prevRepos.filter((repo) => repo.ID !== id));
+      setFilteredRepos((prevRepos) =>
+        prevRepos.filter((repo) => repo.ID !== id),
+      );
+    } catch (error) {
+      console.error("Error deleting repository:", error);
+    }
+  };
+
+  // Search repositories
+  const handleSearchChange = debounce((value) => {
+    setSearchTerm(value);
+    setFilteredRepos(
+      repos.filter((repo) =>
+        repo.Name.toLowerCase().includes(value.toLowerCase()),
+      ),
+    );
+  }, 300);
+
+  // Scan for updates and refresh UI
+  const scanForUpdates = async () => {
+    setIsScanning(true);
+    try {
+      await fetchAPI("/scan-updates", { method: "POST" });
+      fetchRepositories(); // Refresh repositories after scanning
+    } catch (error) {
+      console.error("Error scanning for updates:", error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  // Fetch and show changelog
+
+  const showChangelog = async (id, name) => {
+    try {
+      const data = await fetchAPI(`/repositories/${id}/changelog`);
+      alert(`Changelog for ${name}:\n\n${data.changelog}`);
+    } catch (error) {
+      console.error("Error fetching changelog:", error);
+      alert("Failed to fetch changelog.");
+    }
+  };
+
+  return (
+    <div className="container max-w-5xl mx-auto p-6">
+      <div className="text-center mb-8">
+        <h1 className="text-5xl font-extrabold text-[var(--color-primary)]">
+          Dashboard
+        </h1>
+        <p className="text-gray-400 text-lg mt-2">
+          Manage your repositories easily.
+        </p>
+      </div>
+
+      {/* Buttons */}
+      <div className="flex justify-center gap-6 mb-8">
+        <button
+          onClick={() => setIsAdding(true)}
+          className="btn btn-primary flex items-center gap-2"
+        >
+          <FaPlus /> Add Repository
+        </button>
+        <button
+          onClick={scanForUpdates}
+          disabled={isScanning}
+          className={`btn btn-secondary flex items-center gap-2 ${isScanning ? "cursor-not-allowed" : ""
+            }`}
+        >
+          {isScanning ? (
+            "Scanning..."
+          ) : (
+            <>
+              <FaSyncAlt /> Scan for Updates
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Search Input */}
+      <div className="relative mb-8">
+        <FaSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
+        <input
+          type="text"
+          placeholder="Search repositories..."
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="input-field pl-14 w-full h-14 text-lg rounded-lg border border-[var(--color-border)]"
+        />
+      </div>
+
+      {/* Add Repository Modal */}
+      {isAdding && (
+        <AddRepoModal setIsAdding={setIsAdding} addRepository={addRepository} />
+      )}
+
+      {/* Repository List */}
+      <RepoList
+        repos={filteredRepos}
+        deleteRepo={deleteRepo}
+        showChangelog={showChangelog}
+      />
+
+      {/* Changelog Modal */}
+      {changelog && (
+        <ConfirmBox
+          message={`Changelog for ${selectedRepo}:\n\n${changelog}`}
+          onConfirm={() => setChangelog(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;
+
+### ./frontend/src/pages/settings/Settings.jsx ###
+
+import { useState } from "react";
+import Toast from "@/components/ui/Toast";
+import { FaGithub, FaPaintBrush, FaClock } from "react-icons/fa";
+
+const Settings = () => {
+  const [theme, setTheme] = useState(
+    localStorage.getItem("theme") || "tokyoNight",
+  );
+  const [cronSchedule, setCronSchedule] = useState(
+    localStorage.getItem("cron") || "*/5 * * * *",
+  );
+  const savedApiKey = localStorage.getItem("githubApiKey") || "";
+  const [githubApiKey, setGithubApiKey] = useState(savedApiKey);
+  const [toast, setToast] = useState(null);
+  const [errors, setErrors] = useState({});
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const validateApiKey = (key) => {
+    const githubApiKeyPattern =
+      /^gh[pors]_[a-zA-Z0-9]{36,}$|^github_pat_[a-zA-Z0-9_-]{36,}$/;
+    return key === "" || githubApiKeyPattern.test(key);
+  };
+
+  const validateForm = () => {
+    let formErrors = {};
+    if (githubApiKey && !validateApiKey(githubApiKey)) {
+      formErrors.githubApiKey = "Invalid GitHub API key format.";
+    }
+    if (!cronSchedule.trim()) {
+      formErrors.cronSchedule = "Cron schedule cannot be empty.";
+    }
+    setErrors(formErrors);
+    return Object.keys(formErrors).length === 0;
+  };
+
+  const handleSaveSettings = async () => {
+    if (!validateForm()) return;
+    localStorage.setItem("theme", theme);
+    localStorage.setItem("cron", cronSchedule);
+    localStorage.setItem("githubApiKey", githubApiKey);
+
+    try {
+      await fetch("/update-cron", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cron: cronSchedule }),
+      });
+      showToast("success", "Settings saved successfully!");
+      setTimeout(() => window.location.reload(), 500);
+    } catch (error) {
+      showToast("error", "Failed to update settings.");
+    }
+  };
+
+  return (
+    <div className="container max-w-4xl mx-auto p-6">
+      {toast && <Toast type={toast.type} message={toast.message} />}
+      <div className="card text-center p-8 shadow-lg rounded-2xl mb-8">
+        <h1 className="text-5xl font-extrabold text-[var(--color-primary)]">
+          Settings
+        </h1>
+        <p className="text-gray-400 mt-2">
+          Manage your preferences and configurations.
+        </p>
+      </div>
+
+      <div className="card p-8 shadow-lg rounded-2xl">
+        <h2 className="text-2xl font-bold mb-6 text-[var(--color-primary)]">
+          Preferences
+        </h2>
+
+        <div className="space-y-6">
+          {/* Theme Selection */}
+          <div className="relative">
+            <label className="block text-sm font-medium mb-2">
+              Theme <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <FaPaintBrush className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+              <select
+                value={theme}
+                onChange={(e) => setTheme(e.target.value)}
+                className="input-field pl-12"
+              >
+                <option value="tokyoNight">Tokyo Night</option>
+                <option value="dark">Dark</option>
+                <option value="light">Light</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Cron Schedule with Clock Icon */}
+          <div className="relative">
+            <label className="block text-sm font-medium mb-2">
+              Cron Schedule <span className="text-red-500">*</span>
+            </label>
+            <div className="relative">
+              <FaClock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+              <input
+                type="text"
+                value={cronSchedule}
+                onChange={(e) => setCronSchedule(e.target.value)}
+                placeholder="*/5 * * * *"
+                className={`input-field pl-12 ${errors.cronSchedule ? "border-red-500" : ""}`}
+              />
+            </div>
+            {errors.cronSchedule && (
+              <p className="text-red-500 text-sm mt-1">{errors.cronSchedule}</p>
+            )}
+          </div>
+
+          {/* GitHub API Key */}
+          <div className="relative">
+            <label className="block text-sm font-medium mb-2">
+              GitHub API Key
+            </label>
+            <div className="relative">
+              <FaGithub className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+              <input
+                type="password"
+                value={githubApiKey}
+                onChange={(e) => setGithubApiKey(e.target.value)}
+                placeholder="Enter GitHub API Key"
+                className={`input-field pl-12 ${errors.githubApiKey ? "border-red-500" : ""}`}
+              />
+            </div>
+            {errors.githubApiKey && (
+              <p className="text-red-500 text-sm mt-1">{errors.githubApiKey}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-8 flex justify-end gap-4">
+          <button
+            onClick={handleSaveSettings}
+            className="btn btn-primary px-6 py-2"
+          >
+            Save Settings
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Settings;
+
+### ./frontend/src/pages/settings/Settings.css ###
+
+/* Scoped styles for the Settings page */
+/* Base layout adjustments */
+.settings {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 3rem 1.5rem;
+}
+
+/* Card and container styling */
+.settings .container {
+    max-width: 700px;
+    width: 100%;
+    background-color: var(--color-card);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    padding: 3rem;
+    margin-top: 2rem;
+}
+
+/* Header section */
+.settings .title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Form labels */
+.settings .label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+/* Form input fields */
+.settings .input-field {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid var(--color-border);
+    border-radius: 0.5rem;
+    background-color: rgba(36, 40, 59, 0.9);
+    color: var(--color-text);
+    outline: none;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.settings .input-field:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 12px var(--color-primary);
+}
+
+.settings .input-field::placeholder {
+    color: rgba(192, 202, 245, 0.5);
+    font-style: italic;
+}
+
+/* Button styles */
+.settings .btn-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.settings .btn-primary {
+    flex: 1;
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: bold;
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+}
+
+.settings .btn-primary:hover {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-2px);
+}
+
+.settings .btn-secondary {
+    flex: 1;
+    background-color: #6b7280;
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: bold;
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+}
+
+.settings .btn-secondary:hover {
+    background-color: #4b5563;
+}
+
+/* Success message styling */
+.settings .alert {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+}
+
+.settings .alert-success {
+    background-color: #22c55e;
+    color: white;
+}
+
+.settings .alert-error {
+    background-color: #ef4444;
+    color: white;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .settings .container {
+        padding: 1.5rem;
+    }
+}
+
+### ./frontend/index.html ###
+
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Surveillance App</title>
+
+  <!-- Use JetBrains Mono from Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap"
+    rel="stylesheet" />
+
+  <!-- Prevent white flash by setting background color early -->
+  <style>
+    body {
+      background-color: #1a1b26;
+    }
+  </style>
+
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.jsx"></script>
+</body>
+
+</html>
+
+### ./frontend/eslint.config.js ###
+
+import js from '@eslint/js'
+import globals from 'globals'
+import react from 'eslint-plugin-react'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+
+export default [
+  { ignores: ['dist'] },
+  {
+    files: ['**/*.{js,jsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    settings: { react: { version: '18.3' } },
+    plugins: {
+      react,
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...react.configs.recommended.rules,
+      ...react.configs['jsx-runtime'].rules,
+      ...reactHooks.configs.recommended.rules,
+      'react/jsx-no-target-blank': 'off',
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+    },
+  },
+]
+
+### ./frontend/vite.config.js ###
+
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import path from "path";
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "src"), // Ensure the correct path
+    },
+  },
+});
+
+### ./frontend/package.json ###
+
+{
+  "name": "repos-monitor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "framer-motion": "^12.0.5",
+    "lodash": "^4.17.21",
+    "react": "^18.3.1",
+    "react-confirm-box": "^1.2.0",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.4.0",
+    "react-router-dom": "^7.1.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "tailwindcss": "^4.0.0",
+    "vite": "^6.0.5"
+  }
+}
+
+### ./all_files_content.txt ###
+
+
+### ./backend/cmd/main.go ###
+
+package main
+
+import (
+	"log"
+	"os"
+	"surveillance/internal/models"
+	"surveillance/internal/routes"
+	"surveillance/internal/services"
+
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/robfig/cron/v3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+)
+
+func initDB() *gorm.DB {
+	if err := os.MkdirAll("./db", os.ModePerm); err != nil {
+		log.Fatalf("Failed to create db directory: %v", err)
+	}
+
+	db, err := gorm.Open(sqlite.Open("./db/sqlite.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	db.AutoMigrate(&models.Repository{})
+	return db
+}
+
+func main() {
+	e := echo.New()
+
+	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
+		AllowOrigins: []string{"http://localhost:5173"},
+		AllowMethods: []string{echo.GET, echo.POST, echo.DELETE},
+	}))
+
+	db := initDB()
+
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			c.Set("db", db)
+			return next(c)
+		}
+	})
+
+	// Initialize routes
+	routes.InitRepositoryRoutes(e)
+
+	// Initialize cron job with dynamic schedule
+	c := cron.New()
+	c.AddFunc("@every 5m", func() { services.MonitorRepositories(db) }) // Default schedule
+	go c.Start()
+
+	// Start the server
+	e.Logger.Fatal(e.Start(":8080"))
+}
+
+### ./backend/go.mod ###
+
+module surveillance
+
+go 1.23.5
+
+require (
+	github.com/jinzhu/inflection v1.0.0 // indirect
+	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/labstack/echo/v4 v4.13.3 // indirect
+	github.com/labstack/gommon v0.4.2 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-sqlite3 v1.14.22 // indirect
+	github.com/robfig/cron/v3 v3.0.1 // indirect
+	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fasttemplate v1.2.2 // indirect
+	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/net v0.33.0 // indirect
+	golang.org/x/sys v0.28.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/time v0.8.0 // indirect
+	gorm.io/driver/sqlite v1.5.7 // indirect
+	gorm.io/gorm v1.25.12 // indirect
+)
+
+### ./backend/internal/services/monitor.go ###
+
+package services
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"surveillance/internal/models"
+	"time"
+
+	"gorm.io/gorm"
+)
+
+func MonitorRepositories(db *gorm.DB) {
+	fmt.Println("Scanning repositories for updates...")
+
+	var repos []models.Repository
+	if err := db.Find(&repos).Error; err != nil {
+		fmt.Printf("Failed to fetch repositories: %v\n", err)
+		return
+	}
+
+	for _, repo := range repos {
+		checkForReleaseUpdate(db, repo)
+	}
+}
+
+func checkForReleaseUpdate(db *gorm.DB, repo models.Repository) {
+	githubAPI := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repo.Name)
+
+	resp, err := http.Get(githubAPI)
+	if err != nil || resp.StatusCode != http.StatusOK {
+		fmt.Printf("Failed to fetch release for %s: %v\n", repo.Name, err)
+		return
+	}
+	defer resp.Body.Close()
+
+	var releaseData struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&releaseData); err != nil {
+		fmt.Printf("Failed to parse release data for %s: %v\n", repo.Name, err)
+		return
+	}
+
+	// ✅ Store last updated date
+	repo.LastUpdated = time.Now().Format("Jan 02 2006")
+
+	// ✅ Update only if the latest release changed
+	if repo.LatestRelease != releaseData.TagName {
+		fmt.Printf("New release detected for %s: %s\n", repo.Name, releaseData.TagName)
+		db.Model(&repo).Updates(models.Repository{
+			LatestRelease: releaseData.TagName,
+			LastUpdated:   repo.LastUpdated,
+		})
+	} else {
+		// Just update last checked timestamp
+		db.Model(&repo).Update("LastUpdated", repo.LastUpdated)
+	}
+}
+
+### ./backend/internal/routes/repository.go ###
+
+package routes
+
+import (
+	"net/http"
+	"time"
+
+	"surveillance/internal/models"
+	"surveillance/internal/services"
+
+	"github.com/labstack/echo/v4"
+	"gorm.io/gorm"
+)
+
+func InitRepositoryRoutes(e *echo.Echo) {
+	e.POST("/repositories", AddRepository)
+	e.GET("/repositories", GetRepositories)
+	e.DELETE("/repositories/:id", DeleteRepository)
+	e.POST("/scan-updates", ScanForUpdates)
+	e.GET("/repositories/:id/changelog", GetChangelog)
+
+}
+
+func AddRepository(c echo.Context) error {
+	db := c.Get("db").(*gorm.DB)
+
+	var payload struct {
+		Name    string `json:"name"`
+		URL     string `json:"url"`
+		Version string `json:"version"`
+	}
+
+	if err := c.Bind(&payload); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid payload"})
+	}
+
+	repo := models.Repository{
+		Name:           payload.Name,
+		URL:            payload.URL,
+		CurrentVersion: payload.Version,
+		LatestRelease:  payload.Version,
+		LastUpdated:    time.Now().Format("Jan 02 2006"),
+	}
+
+	if err := db.Create(&repo).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to add repository"})
+	}
+
+	return c.JSON(http.StatusCreated, repo)
+}
+
+func GetRepositories(c echo.Context) error {
+	db := c.Get("db").(*gorm.DB)
+	var repos []models.Repository
+
+	if err := db.Find(&repos).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch repositories"})
+	}
+
+	return c.JSON(http.StatusOK, repos)
+}
+
+func DeleteRepository(c echo.Context) error {
+	db := c.Get("db").(*gorm.DB)
+	id := c.Param("id")
+
+	if err := db.Delete(&models.Repository{}, id).Error; err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete repository"})
+	}
+
+	return c.JSON(http.StatusOK, map[string]string{"message": "Repository deleted"})
+}
+
+func ScanForUpdates(c echo.Context) error {
+	db := c.Get("db").(*gorm.DB)
+	go services.MonitorRepositories(db)
+	return c.JSON(http.StatusOK, map[string]string{"message": "Scanning started"})
+}
+
+func GetChangelog(c echo.Context) error {
+	db := c.Get("db").(*gorm.DB)
+	id := c.Param("id")
+
+	var repo models.Repository
+	if err := db.First(&repo, id).Error; err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{"error": "Repository not found"})
+	}
+
+	// Assume the changelog is stored in a field `Changelog`. Replace with real logic if needed.
+	return c.JSON(http.StatusOK, map[string]string{"changelog": repo.Changelog})
+}
+
+### ./backend/internal/models/repository.go ###
+
+package models
+
+type Repository struct {
+	ID             uint   `gorm:"primaryKey"`
+	Name           string `gorm:"not null"`
+	URL            string `gorm:"unique;not null"`
+	CurrentVersion string
+	LatestRelease  string
+	LastUpdated    string
+	Changelog      string
+}
+
+### ./backend/go.sum ###
+
+github.com/jinzhu/inflection v1.0.0 h1:K317FqzuhWc8YvSVlFMCCUb36O/S9MCKRDI7QkRKD/E=
+github.com/jinzhu/inflection v1.0.0/go.mod h1:h+uFLlag+Qp1Va5pdKtLDYj+kHp5pxUVkryuEj+Srlc=
+github.com/jinzhu/now v1.1.5 h1:/o9tlHleP7gOFmsnYNz3RGnqzefHA47wQpKrrdTIwXQ=
+github.com/jinzhu/now v1.1.5/go.mod h1:d3SSVoowX0Lcu0IBviAWJpolVfI5UJVZZ7cO71lE/z8=
+github.com/labstack/echo/v4 v4.13.3 h1:pwhpCPrTl5qry5HRdM5FwdXnhXSLSY+WE+YQSeCaafY=
+github.com/labstack/echo/v4 v4.13.3/go.mod h1:o90YNEeQWjDozo584l7AwhJMHN0bOC4tAfg+Xox9q5g=
+github.com/labstack/gommon v0.4.2 h1:F8qTUNXgG1+6WQmqoUWnz8WiEU60mXVVw0P4ht1WRA0=
+github.com/labstack/gommon v0.4.2/go.mod h1:QlUFxVM+SNXhDL/Z7YhocGIBYOiwB0mXm1+1bAPHPyU=
+github.com/mattn/go-colorable v0.1.13 h1:fFA4WZxdEF4tXPZVKMLwD8oUnCTTo08duU7wxecdEvA=
+github.com/mattn/go-colorable v0.1.13/go.mod h1:7S9/ev0klgBDR4GtXTXX8a3vIGJpMovkB8vQcUbaXHg=
+github.com/mattn/go-isatty v0.0.16/go.mod h1:kYGgaQfpe5nmfYZH+SKPsOc2e4SrIfOl2e/yFXSvRLM=
+github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWEY=
+github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
+github.com/mattn/go-sqlite3 v1.14.22 h1:2gZY6PC6kBnID23Tichd1K+Z0oS6nE/XwU+Vz/5o4kU=
+github.com/mattn/go-sqlite3 v1.14.22/go.mod h1:Uh1q+B4BYcTPb+yiD3kU8Ct7aC0hY9fxUwlHK0RXw+Y=
+github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
+github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
+github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
+github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
+github.com/valyala/fasttemplate v1.2.2 h1:lxLXG0uE3Qnshl9QyaK6XJxMXlQZELvChBOCmQD0Loo=
+github.com/valyala/fasttemplate v1.2.2/go.mod h1:KHLXt3tVN2HBp8eijSv/kGJopbvo7S+qRAEEKiv+SiQ=
+golang.org/x/crypto v0.31.0 h1:ihbySMvVjLAeSH1IbfcRTkD/iNscyz8rGzjF/E5hV6U=
+golang.org/x/crypto v0.31.0/go.mod h1:kDsLvtWBEx7MV9tJOj9bnXsPbxwJQ6csT/x4KIN4Ssk=
+golang.org/x/net v0.33.0 h1:74SYHlV8BIgHIFC/LrYkOGIwL19eTYXQ5wc6TBuO36I=
+golang.org/x/net v0.33.0/go.mod h1:HXLR5J+9DxmrqMwG9qjGCxZ+zKXxBru04zlTvWlWuN4=
+golang.org/x/sys v0.0.0-20220811171246-fbc7d0a398ab/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.6.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.28.0 h1:Fksou7UEQUWlKvIdsqzJmUmCX3cZuD2+P3XyyzwMhlA=
+golang.org/x/sys v0.28.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+golang.org/x/text v0.21.0 h1:zyQAAkrwaneQ066sspRyJaG9VNi/YJ1NfzcGB3hZ/qo=
+golang.org/x/text v0.21.0/go.mod h1:4IBbMaMmOPCJ8SecivzSH54+73PCFmPWxNTLm+vZkEQ=
+golang.org/x/time v0.8.0 h1:9i3RxcPv3PZnitoVGMPDKZSq1xW1gK1Xy3ArNOGZfEg=
+golang.org/x/time v0.8.0/go.mod h1:3BpzKBy/shNhVucY/MWOyx10tF3SFh9QdLuxbVysPQM=
+gorm.io/driver/sqlite v1.5.7 h1:8NvsrhP0ifM7LX9G4zPB97NwovUakUxc+2V2uuf3Z1I=
+gorm.io/driver/sqlite v1.5.7/go.mod h1:U+J8craQU6Fzkcvu8oLeAQmi50TkwPEhHDEjQZXDah4=
+gorm.io/gorm v1.25.12 h1:I0u8i2hWQItBq1WfE0o2+WuL9+8L21K9e2HHSTE/0f8=
+gorm.io/gorm v1.25.12/go.mod h1:xh7N7RHfYlNc5EmcI/El95gXusucDrQnHXe0+CgWcLQ=
