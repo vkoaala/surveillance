@@ -9,7 +9,7 @@ import ChangelogBox from "@/components/ui/ChangelogBox";
 const Dashboard = () => {
   const [repos, setRepos] = useState([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
+  const [setSearchTerm] = useState("");
   const [filteredRepos, setFilteredRepos] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScan, setLastScan] = useState("");
