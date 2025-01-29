@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaGithub, FaTag } from "react-icons/fa";
 
-const AddRepoModal = ({ setIsAdding, addRepository }) => {
+const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
   const [newRepo, setNewRepo] = useState("");
   const [currentVersion, setCurrentVersion] = useState("");
   const [error, setError] = useState("");
@@ -19,39 +19,36 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
   }, []);
 
   const validateRepoInput = (input) => {
-    const trimmedInput = input.trim();
+    const trimmed = input.trim();
     const repoPattern = /^[\w-]+\/[\w.-]+$/;
     const fullUrlPattern =
-      /^(https:\/\/)?(www\.)?github\.com\/([\w-]+\/[\w.-]+)$/;
+      /^(https:\/\/)?(www\.)?github\.com\/([\w-]+\/[\w.-]+)(\/.*)?$/;
 
-    if (fullUrlPattern.test(trimmedInput)) {
-      return trimmedInput.startsWith("http")
-        ? trimmedInput
-        : `https://${trimmedInput.replace(/^www\./, "")}`;
-    } else if (repoPattern.test(trimmedInput)) {
-      return `https://github.com/${trimmedInput}`;
+    if (fullUrlPattern.test(trimmed)) {
+      return trimmed.startsWith("http")
+        ? trimmed
+        : `https://${trimmed.replace(/^www\./, "")}`;
+    } else if (repoPattern.test(trimmed)) {
+      return `https://github.com/${trimmed}`;
     }
     return null;
   };
 
   const fetchRepoDetails = async (repoUrl) => {
     try {
-      const repoNameMatch = repoUrl.match(/github\.com\/([\w-]+\/[\w.-]+)/);
-      if (!repoNameMatch) {
+      const match = repoUrl.match(/github\.com\/([\w-]+\/[\w.-]+)/);
+      if (!match) {
         setError("Invalid GitHub repository URL.");
         return null;
       }
-
-      const repoName = repoNameMatch[1];
+      const repoName = match[1];
       const headers = githubToken
         ? { Authorization: `Bearer ${githubToken}` }
         : {};
-
       const response = await fetch(
         `https://api.github.com/repos/${repoName}/releases/latest`,
         { headers },
       );
-
       if (response.ok) {
         const data = await response.json();
         return { name: repoName, version: data.tag_name };
@@ -60,9 +57,9 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
       } else {
         throw new Error("Failed to fetch repository details.");
       }
-    } catch (error) {
+    } catch (err) {
       setError("Error fetching repository details.");
-      console.error(error);
+      console.error(err);
       return null;
     }
   };
@@ -71,14 +68,33 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
     setError("");
     setIsLoading(true);
 
-    const validRepoUrl = validateRepoInput(newRepo);
+    let validRepoUrl = validateRepoInput(newRepo);
     if (!validRepoUrl) {
       setError("Please enter a valid GitHub repository URL or owner/repo.");
       setIsLoading(false);
       return;
     }
 
-    let repoDetails = { name: "", version: currentVersion.trim() || "latest" };
+    // Strip anything after owner/repo
+    validRepoUrl = validRepoUrl.replace(
+      /^(https:\/\/(?:www\.)?github\.com\/[\w-]+\/[\w.-]+)(?:\/.*)?$/,
+      "$1",
+    );
+
+    // Front-end check if this URL is already present
+    const alreadyPresent = existingRepos.some(
+      (r) => r.URL.toLowerCase() === validRepoUrl.toLowerCase(),
+    );
+    if (alreadyPresent) {
+      setError("Repository is already present.");
+      setIsLoading(false);
+      return;
+    }
+
+    let repoDetails = {
+      name: "",
+      version: currentVersion.trim() || "latest",
+    };
     if (!currentVersion.trim()) {
       const details = await fetchRepoDetails(validRepoUrl);
       if (!details) {
@@ -98,59 +114,72 @@ const AddRepoModal = ({ setIsAdding, addRepository }) => {
       await addRepository(payload);
       setNewRepo("");
       setCurrentVersion("");
-      setIsAdding(false); // ✅ Close the modal after successful save
-    } catch (error) {
+      setIsAdding(false);
+    } catch (err) {
       setError("Failed to add repository.");
     } finally {
       setIsLoading(false);
     }
   };
+
   return (
-    <div className="bg-[var(--color-card)] p-6 rounded-lg shadow-md border border-[var(--color-border)] flex flex-col gap-6 transition-all">
-      <div className="relative">
-        <FaGithub className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
-        <input
-          type="text"
-          placeholder="Enter GitHub repository (e.g., owner/repo)"
-          value={newRepo}
-          onChange={(e) => setNewRepo(e.target.value)}
-          className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${error
-              ? "border-[var(--color-primary)]"
-              : "border-[var(--color-border)]"
+    <div className="bg-[var(--color-card)] p-8 rounded-lg shadow-md border border-[var(--color-border)] w-full space-y-6">
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Repository URL or owner/repo
+        </label>
+        <div className="relative">
+          <FaGithub className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none" />
+          <input
+            type="text"
+            placeholder="https://github.com/user/repo"
+            value={newRepo}
+            onChange={(e) => setNewRepo(e.target.value)}
+            className={`w-full h-14 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${
+              error ? "border-red-500" : "border-[var(--color-border)]"
             }`}
-          autoFocus
-        />
+            autoFocus
+          />
+        </div>
       </div>
 
-      <div className="relative">
-        <FaTag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
-        <input
-          type="text"
-          placeholder="Enter version (e.g., v1.0.0) or leave empty for latest"
-          value={currentVersion}
-          onChange={(e) => setCurrentVersion(e.target.value)}
-          className="w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border border-[var(--color-border)]"
-        />
+      <div>
+        <label className="block text-sm font-medium mb-2">
+          Version (optional)
+        </label>
+        <div className="flex items-center gap-4">
+          <div className="relative flex-1">
+            <FaTag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none" />
+            <input
+              type="text"
+              placeholder="v1.0.0 or empty for latest"
+              value={currentVersion}
+              onChange={(e) => setCurrentVersion(e.target.value)}
+              className="w-full h-14 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border border-[var(--color-border)]"
+            />
+          </div>
+
+          <button
+            onClick={handleAddRepo}
+            disabled={isLoading}
+            className={`h-14 px-6 rounded-md shadow-md transition-all text-sm ${
+              isLoading
+                ? "bg-gray-500 cursor-not-allowed"
+                : "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]"
+            }`}
+          >
+            {isLoading ? "Adding..." : "Save"}
+          </button>
+
+          <button
+            onClick={() => setIsAdding(false)}
+            className="h-14 px-6 bg-gray-600 text-white rounded-md shadow-md hover:bg-gray-700 transition-all text-sm"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
 
-      <div className="flex gap-4 justify-end">
-        <button
-          onClick={handleAddRepo}
-          disabled={isLoading}
-          className={`h-10 px-5 rounded-md shadow-md transition-all text-sm ${isLoading
-              ? "bg-gray-500 cursor-not-allowed"
-              : "bg-[var(--color-primary)] text-white"
-            }`}
-        >
-          {isLoading ? "Adding..." : "Save"}
-        </button>
-        <button
-          onClick={() => setIsAdding(false)}
-          className="h-10 px-5 bg-gray-600 text-white rounded-md shadow-md hover:bg-gray-700 transition-all text-sm"
-        >
-          Cancel
-        </button>
-      </div>
       {error && <div className="text-red-500 text-sm text-center">{error}</div>}
     </div>
   );

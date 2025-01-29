@@ -21,7 +21,6 @@ const RepoList = ({ repos, deleteRepo, showChangelog }) => {
           key={repo.ID}
           className="bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)] flex justify-between items-center transition-all hover:-translate-y-1 hover:shadow-lg"
         >
-          {/* Left Section: Repo Info */}
           <div>
             <a
               href={repo.URL}
@@ -53,24 +52,17 @@ const RepoList = ({ repos, deleteRepo, showChangelog }) => {
               <span className="font-semibold">Last Updated:</span>{" "}
               {repo.LastUpdated
                 ? new Date(repo.LastUpdated).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                  year: "numeric",
-                })
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
                 : "N/A"}
             </p>
           </div>
 
           <div className="flex items-center space-x-4">
             <button
-              onClick={() =>
-                showChangelog(
-                  repo.ID,
-                  repo.Name,
-                  repo.CurrentVersion,
-                  repo.LatestRelease,
-                )
-              }
+              onClick={() => showChangelog(repo.ID)}
               className="text-[var(--color-text)] hover:text-[var(--color-primary)] transition-all"
             >
               <FaRegFileAlt className="text-lg" />
@@ -86,7 +78,6 @@ const RepoList = ({ repos, deleteRepo, showChangelog }) => {
         </div>
       ))}
 
-      {/* Confirm Delete Dialog */}
       {confirming && (
         <ConfirmBox
           message="Are you sure you want to delete this repository?"

@@ -66,6 +66,17 @@ const Dashboard = () => {
     }
   };
 
+  const showChangelog = (id) => {
+    const found = repos.find((r) => r.ID === id);
+    if (!found) return;
+    setChangelog({
+      name: found.Name,
+      version: found.CurrentVersion,
+      latestRelease: found.LatestRelease,
+      content: found.Changelog || "No changelog found.",
+    });
+  };
+
   return (
     <div className="container max-w-5xl mx-auto p-6">
       <div className="text-center mb-8">
@@ -114,9 +125,21 @@ const Dashboard = () => {
       </div>
 
       {isAdding && (
-        <AddRepoModal setIsAdding={setIsAdding} addRepository={addRepository} />
+        <AddRepoModal
+          setIsAdding={setIsAdding}
+          addRepository={addRepository}
+          existingRepos={repos}
+        />
       )}
-      <RepoList repos={filteredRepos} deleteRepo={deleteRepo} />
+
+      {/* Pass showChangelog to RepoList */}
+      <RepoList
+        repos={filteredRepos}
+        deleteRepo={deleteRepo}
+        showChangelog={showChangelog}
+      />
+
+      {/* Render the ChangelogBox if changelog state is set */}
       {changelog && (
         <ChangelogBox {...changelog} onClose={() => setChangelog(null)} />
       )}

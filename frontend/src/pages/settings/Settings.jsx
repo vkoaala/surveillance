@@ -3,6 +3,17 @@ import { useTheme } from "@/context/ThemeContext";
 import Toast from "@/components/ui/Toast";
 import { FaGithub, FaClock, FaPalette } from "react-icons/fa";
 import { fetchSettings, updateSettings } from "@/config/api";
+import cronParser from "cron-parser";
+
+const isValidCron = (value) => {
+  if (!value.trim()) return false;
+  try {
+    cronParser.parseExpression(value.trim());
+    return true;
+  } catch (e) {
+    return false;
+  }
+};
 
 const Settings = ({ updateBanner }) => {
   const { theme, updateTheme } = useTheme();
@@ -20,12 +31,11 @@ const Settings = ({ updateBanner }) => {
         setCronSchedule(settings.cronSchedule);
         setGithubApiKey(settings.githubApiKey);
         updateTheme(settings.theme);
-
         if (settings.githubApiKey) {
           localStorage.setItem("githubApiKey", settings.githubApiKey);
           updateBanner();
         }
-      } catch (error) {
+      } catch {
         showToast("error", "Failed to load settings.");
       } finally {
         setLoading(false);
@@ -43,6 +53,8 @@ const Settings = ({ updateBanner }) => {
     let formErrors = {};
     if (!cronSchedule.trim()) {
       formErrors.cronSchedule = "Cron schedule cannot be empty.";
+    } else if (!isValidCron(cronSchedule)) {
+      formErrors.cronSchedule = "Invalid cron expression.";
     }
     setErrors(formErrors);
     return Object.keys(formErrors).length === 0;
@@ -50,7 +62,6 @@ const Settings = ({ updateBanner }) => {
 
   const handleSaveSettings = async () => {
     if (!validateForm()) return;
-
     setSaving(true);
     try {
       await updateSettings({
@@ -58,14 +69,12 @@ const Settings = ({ updateBanner }) => {
         githubApiKey,
         theme,
       });
-
       if (githubApiKey) {
         localStorage.setItem("githubApiKey", githubApiKey);
         updateBanner();
       }
-
       showToast("success", "Settings saved successfully!");
-    } catch (error) {
+    } catch {
       showToast("error", "Failed to save settings.");
     } finally {
       setSaving(false);

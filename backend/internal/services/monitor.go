@@ -54,7 +54,14 @@ func MonitorRepositories(db *gorm.DB) {
 		return
 	}
 
+	if len(repos) == 0 {
+		fmt.Println("No repositories found. Skipping scan.")
+		return
+	}
+
 	for _, repo := range repos {
 		checkForReleaseUpdate(db, repo)
 	}
+
+	fmt.Println("Finished scanning repositories.")
 }
