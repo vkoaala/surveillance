@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
+import { fetchAPI } from "@/config/api";
 
 const themes = {
   tokyoNight: {
@@ -27,24 +28,33 @@ const themes = {
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState(
-    localStorage.getItem("theme") || "tokyoNight",
-  );
+  const [theme, setTheme] = useState("tokyoNight");
 
   useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+    fetchAPI("/settings")
+      .then((settings) => {
+        if (settings.theme) {
+          setTheme(settings.theme);
+          applyTheme(settings.theme);
+        }
+      })
+      .catch(() => console.error("Error loading theme settings"));
+  }, []);
 
   const applyTheme = (themeName) => {
     const themeVars = themes[themeName] || themes.tokyoNight;
-    Object.entries(themeVars).forEach(([key, value]) => {
-      document.documentElement.style.setProperty(key, value);
-    });
+    Object.entries(themeVars).forEach(([key, value]) =>
+      document.documentElement.style.setProperty(key, value),
+    );
   };
 
   const updateTheme = (newTheme) => {
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
+    fetchAPI("/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ theme: newTheme }),
+    }).catch(() => console.error("Error saving theme setting"));
     applyTheme(newTheme);
   };
 

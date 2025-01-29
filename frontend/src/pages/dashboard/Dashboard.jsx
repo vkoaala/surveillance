@@ -1,36 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import RepoList from "@/components/RepoList";
 import AddRepoModal from "@/components/modals/AddRepoModal";
 import { FaPlus, FaSyncAlt, FaSearch } from "react-icons/fa";
-import debounce from "lodash/debounce";
-import { fetchAPI } from "@/config/api"; // Fixed import
+import { fetchAPI } from "@/config/api";
 import ChangelogBox from "@/components/ui/ChangelogBox";
 
 const Dashboard = () => {
   const [repos, setRepos] = useState([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(""); // Fixed useState
-  const [filteredRepos, setFilteredRepos] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [lastScan, setLastScan] = useState("");
   const [changelog, setChangelog] = useState(null);
 
-  const fetchRepositories = async () => {
-    try {
-      const data = await fetchAPI("/repositories");
-      setRepos(data);
-      setFilteredRepos(data);
-      if (data.length > 0) {
-        setLastScan(data[0].LastScan || "No scan performed yet");
-      }
-    } catch (error) {
-      console.error("Error fetching repositories:", error);
-    }
-  };
-
   useEffect(() => {
-    fetchRepositories();
+    fetchAPI("/repositories")
+      .then((data) => {
+        setRepos(data);
+        if (data.length > 0) {
+          setLastScan(data[0].LastScan || "No scan performed yet");
+        }
+      })
+      .catch(() => console.error("Error fetching repositories"));
   }, []);
+
+  const filteredRepos = useMemo(() => {
+    return repos.filter((repo) =>
+      repo.Name.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+  }, [repos, searchTerm]);
 
   const addRepository = async ({ url, name, version }) => {
     try {
@@ -39,55 +37,30 @@ const Dashboard = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url, name, version }),
       });
-      setRepos((prevRepos) => [...prevRepos, newRepo]);
-      setFilteredRepos((prevRepos) => [...prevRepos, newRepo]);
-    } catch (error) {
-      console.error("Error adding repository:", error);
+      setRepos((prev) => [...prev, newRepo]);
+    } catch {
+      console.error("Error adding repository");
     }
   };
 
   const deleteRepo = async (id) => {
     try {
       await fetchAPI(`/repositories/${id}`, { method: "DELETE" });
-      setRepos((prevRepos) => prevRepos.filter((repo) => repo.ID !== id));
-      setFilteredRepos((prevRepos) =>
-        prevRepos.filter((repo) => repo.ID !== id),
-      );
-    } catch (error) {
-      console.error("Error deleting repository:", error);
+      setRepos((prev) => prev.filter((repo) => repo.ID !== id));
+    } catch {
+      console.error("Error deleting repository");
     }
   };
-
-  const showChangelog = async (id, name, version, latestRelease) => {
-    try {
-      const { changelog } = await fetchAPI(`/repositories/${id}/changelog`);
-      setChangelog({
-        name,
-        version: version || latestRelease,
-        content: changelog,
-      });
-    } catch (error) {
-      console.error("Error fetching changelog:", error);
-      alert("Failed to fetch changelog.");
-    }
-  };
-
-  const handleSearchChange = debounce((value) => {
-    setSearchTerm(value);
-    setFilteredRepos(
-      repos.filter((repo) =>
-        repo.Name.toLowerCase().includes(value.toLowerCase()),
-      ),
-    );
-  }, 300);
 
   const scanForUpdates = async () => {
     setIsScanning(true);
     try {
       await fetchAPI("/scan-updates", { method: "POST" });
-      fetchRepositories();
-    } catch (error) {
-      console.error("Error scanning for updates:", error);
+      fetchAPI("/repositories")
+        .then((data) => setRepos(data))
+        .catch(() => console.error("Error fetching repositories after scan"));
+    } catch {
+      console.error("Error scanning for updates");
     } finally {
       setIsScanning(false);
     }
@@ -114,9 +87,7 @@ const Dashboard = () => {
         <button
           onClick={scanForUpdates}
           disabled={isScanning}
-          className={`btn btn-secondary flex items-center gap-2 ${
-            isScanning ? "cursor-not-allowed" : ""
-          }`}
+          className="btn btn-secondary flex items-center gap-2"
         >
           {isScanning ? (
             "Scanning..."
@@ -137,7 +108,7 @@ const Dashboard = () => {
         <input
           type="text"
           placeholder="Search repositories..."
-          onChange={(e) => handleSearchChange(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           className="input-field pl-14 w-full h-14 text-lg rounded-lg border border-[var(--color-border)]"
         />
       </div>
@@ -145,20 +116,9 @@ const Dashboard = () => {
       {isAdding && (
         <AddRepoModal setIsAdding={setIsAdding} addRepository={addRepository} />
       )}
-
-      <RepoList
-        repos={filteredRepos}
-        deleteRepo={deleteRepo}
-        showChangelog={showChangelog}
-      />
-
+      <RepoList repos={filteredRepos} deleteRepo={deleteRepo} />
       {changelog && (
-        <ChangelogBox
-          name={changelog.name}
-          version={changelog.version}
-          content={changelog.content}
-          onClose={() => setChangelog(null)}
-        />
+        <ChangelogBox {...changelog} onClose={() => setChangelog(null)} />
       )}
     </div>
   );
