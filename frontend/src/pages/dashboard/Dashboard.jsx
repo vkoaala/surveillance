@@ -3,25 +3,23 @@ import RepoList from "@/components/RepoList";
 import AddRepoModal from "@/components/modals/AddRepoModal";
 import { FaPlus, FaSyncAlt, FaSearch } from "react-icons/fa";
 import debounce from "lodash/debounce";
-import { fetchAPI } from "@/config/api";
+import { fetchAPI } from "@/config/api"; // Fixed import
 import ChangelogBox from "@/components/ui/ChangelogBox";
 
 const Dashboard = () => {
   const [repos, setRepos] = useState([]);
   const [isAdding, setIsAdding] = useState(false);
-  const [setSearchTerm] = useState("");
+  const [searchTerm, setSearchTerm] = useState(""); // Fixed useState
   const [filteredRepos, setFilteredRepos] = useState([]);
   const [isScanning, setIsScanning] = useState(false);
   const [lastScan, setLastScan] = useState("");
   const [changelog, setChangelog] = useState(null);
 
-  // Fetch all repositories
   const fetchRepositories = async () => {
     try {
       const data = await fetchAPI("/repositories");
       setRepos(data);
       setFilteredRepos(data);
-
       if (data.length > 0) {
         setLastScan(data[0].LastScan || "No scan performed yet");
       }
@@ -34,7 +32,6 @@ const Dashboard = () => {
     fetchRepositories();
   }, []);
 
-  // Add a new repository
   const addRepository = async ({ url, name, version }) => {
     try {
       const newRepo = await fetchAPI("/repositories", {
@@ -49,7 +46,6 @@ const Dashboard = () => {
     }
   };
 
-  // Delete a repository
   const deleteRepo = async (id) => {
     try {
       await fetchAPI(`/repositories/${id}`, { method: "DELETE" });
@@ -62,7 +58,6 @@ const Dashboard = () => {
     }
   };
 
-  // Fetch and display the changelog
   const showChangelog = async (id, name, version, latestRelease) => {
     try {
       const { changelog } = await fetchAPI(`/repositories/${id}/changelog`);
@@ -77,7 +72,6 @@ const Dashboard = () => {
     }
   };
 
-  // Search repositories
   const handleSearchChange = debounce((value) => {
     setSearchTerm(value);
     setFilteredRepos(
@@ -87,12 +81,11 @@ const Dashboard = () => {
     );
   }, 300);
 
-  // Scan for updates and refresh UI
   const scanForUpdates = async () => {
     setIsScanning(true);
     try {
       await fetchAPI("/scan-updates", { method: "POST" });
-      fetchRepositories(); // Refresh repositories after scanning
+      fetchRepositories();
     } catch (error) {
       console.error("Error scanning for updates:", error);
     } finally {
@@ -111,7 +104,6 @@ const Dashboard = () => {
         </p>
       </div>
 
-      {/* Buttons */}
       <div className="flex justify-center gap-6 mb-4">
         <button
           onClick={() => setIsAdding(true)}
@@ -122,8 +114,9 @@ const Dashboard = () => {
         <button
           onClick={scanForUpdates}
           disabled={isScanning}
-          className={`btn btn-secondary flex items-center gap-2 ${isScanning ? "cursor-not-allowed" : ""
-            }`}
+          className={`btn btn-secondary flex items-center gap-2 ${
+            isScanning ? "cursor-not-allowed" : ""
+          }`}
         >
           {isScanning ? (
             "Scanning..."
@@ -135,12 +128,10 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Last Scan Timestamp */}
       <div className="text-center mb-4 text-sm text-gray-400">
         Last Scan: {lastScan}
       </div>
 
-      {/* Search Input */}
       <div className="relative mb-8">
         <FaSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
         <input
@@ -151,19 +142,16 @@ const Dashboard = () => {
         />
       </div>
 
-      {/* Add Repository Modal */}
       {isAdding && (
         <AddRepoModal setIsAdding={setIsAdding} addRepository={addRepository} />
       )}
 
-      {/* Repository List */}
       <RepoList
         repos={filteredRepos}
         deleteRepo={deleteRepo}
         showChangelog={showChangelog}
       />
 
-      {/* Changelog Modal */}
       {changelog && (
         <ChangelogBox
           name={changelog.name}

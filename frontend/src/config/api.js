@@ -1,10 +1,21 @@
-export const API_BASE_URL = "http://localhost:8080"; // Backend base URL
+export const API_BASE_URL = "http://localhost:8080";
 
 export const fetchAPI = async (endpoint, options = {}) => {
   const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.error || "API request failed");
+    throw new Error(`API request failed: ${response.statusText}`);
   }
-  return await response.json();
+  return response.json();
+};
+
+export const fetchSettings = async () => {
+  return fetchAPI("/settings");
+};
+
+export const updateSettings = async (settings) => {
+  return fetchAPI("/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
 };

@@ -1,35 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTheme } from "@/context/ThemeContext";
 import Toast from "@/components/ui/Toast";
-import { FaGithub, FaPaintBrush, FaClock } from "react-icons/fa";
+import { FaGithub, FaClock, FaPalette } from "react-icons/fa";
+import { fetchSettings, updateSettings } from "@/config/api";
 
-const Settings = () => {
-  const [theme, setTheme] = useState(
-    localStorage.getItem("theme") || "tokyoNight",
-  );
-  const [cronSchedule, setCronSchedule] = useState(
-    localStorage.getItem("cron") || "*/5 * * * *",
-  );
-  const savedApiKey = localStorage.getItem("githubApiKey") || "";
-  const [githubApiKey, setGithubApiKey] = useState(savedApiKey);
+const Settings = ({ updateBanner }) => {
+  const { theme, updateTheme } = useTheme();
+  const [cronSchedule, setCronSchedule] = useState("");
+  const [githubApiKey, setGithubApiKey] = useState("");
   const [toast, setToast] = useState(null);
   const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await fetchSettings();
+        setCronSchedule(settings.cronSchedule);
+        setGithubApiKey(settings.githubApiKey);
+        updateTheme(settings.theme);
+
+        if (settings.githubApiKey) {
+          localStorage.setItem("githubApiKey", settings.githubApiKey);
+          updateBanner();
+        }
+      } catch (error) {
+        showToast("error", "Failed to load settings.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
 
   const showToast = (type, message) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3000);
   };
 
-  const validateApiKey = (key) => {
-    const githubApiKeyPattern =
-      /^gh[pors]_[a-zA-Z0-9]{36,}$|^github_pat_[a-zA-Z0-9_-]{36,}$/;
-    return key === "" || githubApiKeyPattern.test(key);
-  };
-
   const validateForm = () => {
     let formErrors = {};
-    if (githubApiKey && !validateApiKey(githubApiKey)) {
-      formErrors.githubApiKey = "Invalid GitHub API key format.";
-    }
     if (!cronSchedule.trim()) {
       formErrors.cronSchedule = "Cron schedule cannot be empty.";
     }
@@ -39,52 +50,58 @@ const Settings = () => {
 
   const handleSaveSettings = async () => {
     if (!validateForm()) return;
-    localStorage.setItem("theme", theme);
-    localStorage.setItem("cron", cronSchedule);
-    localStorage.setItem("githubApiKey", githubApiKey);
 
+    setSaving(true);
     try {
-      await fetch("/update-cron", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ cron: cronSchedule }),
+      await updateSettings({
+        cronSchedule,
+        githubApiKey,
+        theme,
       });
+
+      if (githubApiKey) {
+        localStorage.setItem("githubApiKey", githubApiKey);
+        updateBanner();
+      }
+
       showToast("success", "Settings saved successfully!");
-      setTimeout(() => window.location.reload(), 500);
     } catch (error) {
-      showToast("error", "Failed to update settings.");
+      showToast("error", "Failed to save settings.");
+    } finally {
+      setSaving(false);
     }
   };
+
+  if (loading)
+    return <div className="text-center text-gray-400">Loading settings...</div>;
 
   return (
     <div className="container max-w-4xl mx-auto p-6">
       {toast && <Toast type={toast.type} message={toast.message} />}
+
       <div className="card text-center p-8 shadow-lg rounded-2xl mb-8">
         <h1 className="text-5xl font-extrabold text-[var(--color-primary)]">
           Settings
         </h1>
-        <p className="text-gray-400 mt-2">
-          Manage your preferences and configurations.
-        </p>
+        <p className="text-gray-400 mt-2">Manage your configurations.</p>
       </div>
 
       <div className="card p-8 shadow-lg rounded-2xl">
         <h2 className="text-2xl font-bold mb-6 text-[var(--color-primary)]">
-          Preferences
+          General
         </h2>
 
         <div className="space-y-6">
-          {/* Theme Selection */}
           <div className="relative">
             <label className="block text-sm font-medium mb-2">
               Theme <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <FaPaintBrush className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
+              <FaPalette className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
               <select
                 value={theme}
-                onChange={(e) => setTheme(e.target.value)}
-                className="input-field pl-12"
+                onChange={(e) => updateTheme(e.target.value)}
+                className="w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border border-[var(--color-border)]"
               >
                 <option value="tokyoNight">Tokyo Night</option>
                 <option value="dark">Dark</option>
@@ -93,7 +110,6 @@ const Settings = () => {
             </div>
           </div>
 
-          {/* Cron Schedule with Clock Icon */}
           <div className="relative">
             <label className="block text-sm font-medium mb-2">
               Cron Schedule <span className="text-red-500">*</span>
@@ -104,8 +120,11 @@ const Settings = () => {
                 type="text"
                 value={cronSchedule}
                 onChange={(e) => setCronSchedule(e.target.value)}
-                placeholder="*/5 * * * *"
-                className={`input-field pl-12 ${errors.cronSchedule ? "border-red-500" : ""}`}
+                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${
+                  errors.cronSchedule
+                    ? "border-red-500"
+                    : "border-[var(--color-border)]"
+                }`}
               />
             </div>
             {errors.cronSchedule && (
@@ -113,7 +132,6 @@ const Settings = () => {
             )}
           </div>
 
-          {/* GitHub API Key */}
           <div className="relative">
             <label className="block text-sm font-medium mb-2">
               GitHub API Key
@@ -124,22 +142,19 @@ const Settings = () => {
                 type="password"
                 value={githubApiKey}
                 onChange={(e) => setGithubApiKey(e.target.value)}
-                placeholder="Enter GitHub API Key"
-                className={`input-field pl-12 ${errors.githubApiKey ? "border-red-500" : ""}`}
+                className="w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border border-[var(--color-border)]"
               />
             </div>
-            {errors.githubApiKey && (
-              <p className="text-red-500 text-sm mt-1">{errors.githubApiKey}</p>
-            )}
           </div>
         </div>
 
-        <div className="mt-8 flex justify-end gap-4">
+        <div className="mt-8 flex justify-end">
           <button
             onClick={handleSaveSettings}
+            disabled={saving}
             className="btn btn-primary px-6 py-2"
           >
-            Save Settings
+            {saving ? "Saving..." : "Save Settings"}
           </button>
         </div>
       </div>

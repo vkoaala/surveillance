@@ -46,8 +46,6 @@ func checkForReleaseUpdate(db *gorm.DB, repo models.Repository) {
 func MonitorRepositories(db *gorm.DB) {
 	fmt.Println("Scanning repositories for updates...")
 
-	// Update the `LastScan` field globally (with all rows if needed).
-	// Ensure this is intentional by using Exec for clarity.
 	db.Exec("UPDATE repositories SET last_scan = ?", time.Now().Format("Jan 02 2006 15:04:05"))
 
 	var repos []models.Repository
