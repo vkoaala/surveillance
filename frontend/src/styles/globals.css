@@ -13,7 +13,8 @@
 
 /* Global styles */
 body {
-  @apply bg-[var(--color-bg)] text-[var(--color-text)] font-mono;
+  @apply bg-[var(--color-bg)] text-[var(--color-text)];
+  font-family: "JetBrains Mono", monospace;
 }
 
 .container {

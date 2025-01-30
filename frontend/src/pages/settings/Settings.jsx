@@ -213,7 +213,7 @@ const Settings = ({ refreshBannerState }) => {
             <button
               type="button"
               onClick={handleResetApiKey}
-              className="px-6 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-md"
+              className="px-6 py-2 text-blue-200 bg-[var(--color-border)] hover:bg-blue-700 rounded-lg shadow-md"
             >
               Reset API Key
             </button>

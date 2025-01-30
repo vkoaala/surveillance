@@ -32,9 +32,8 @@ const Header = ({ showBanner }) => {
         </nav>
       </div>
       {showBanner && (
-        <div className="bg-blue-800 text-blue-200 p-3 text-center">
-          Warning: You have not set a GitHub API key. Some features may not
-          work. Please configure it in{" "}
+        <div className="bg-blue-600/30 text-blue-200 p-3 text-center">
+          You have not set a GitHub API key. Please configure it in{" "}
           <Link to="/settings" className="underline">
             Settings
           </Link>
