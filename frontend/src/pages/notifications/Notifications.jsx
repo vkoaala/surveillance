@@ -14,10 +14,10 @@ const Notifications = () => {
   useEffect(() => {
     fetchAPI("/notifications")
       .then((settings) => {
-        setWebhookUrl(settings.WebhookURL ?? "");
-        setDiscordName(settings.DiscordName ?? "");
-        setDiscordAvatar(settings.DiscordAvatar ?? "");
-        setMessage(settings.NotificationMessage ?? "");
+        setWebhookUrl(settings.WebhookURL || "");
+        setDiscordName(settings.DiscordName || "");
+        setDiscordAvatar(settings.DiscordAvatar || "");
+        setMessage(settings.NotificationMessage || "");
       })
       .catch(() => console.error("Error fetching notification settings"));
   }, []);
@@ -33,7 +33,7 @@ const Notifications = () => {
     url === "" || /\.(jpg|jpeg|png|gif|webp)$/.test(url);
 
   const validateForm = () => {
-    let formErrors = {};
+    const formErrors = {};
     if (!validateWebhookUrl(webhookUrl))
       formErrors.webhookUrl = "Invalid Discord webhook URL.";
     if (discordAvatar && !validateAvatarUrl(discordAvatar))
@@ -78,7 +78,6 @@ const Notifications = () => {
         <h2 className="text-2xl font-bold mb-6 text-[var(--color-primary)]">
           Discord Settings
         </h2>
-
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium mb-2">
@@ -90,12 +89,7 @@ const Notifications = () => {
                 type="text"
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
-                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] 
-                  outline-none border ${
-                    errors.webhookUrl
-                      ? "border-red-500"
-                      : "border-[var(--color-border)]"
-                  }`}
+                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.webhookUrl ? "border-red-500" : "border-[var(--color-border)]"}`}
               />
             </div>
             {errors.webhookUrl && (
@@ -124,12 +118,7 @@ const Notifications = () => {
                 type="text"
                 value={discordAvatar}
                 onChange={(e) => setDiscordAvatar(e.target.value)}
-                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] 
-                  outline-none border ${
-                    errors.discordAvatar
-                      ? "border-red-500"
-                      : "border-[var(--color-border)]"
-                  }`}
+                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.discordAvatar ? "border-red-500" : "border-[var(--color-border)]"}`}
               />
             </div>
             {errors.discordAvatar && (
@@ -149,12 +138,7 @@ const Notifications = () => {
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] 
-                  outline-none border ${
-                    errors.message
-                      ? "border-red-500"
-                      : "border-[var(--color-border)]"
-                  }`}
+                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.message ? "border-red-500" : "border-[var(--color-border)]"}`}
               />
             </div>
             {errors.message && (

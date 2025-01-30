@@ -22,18 +22,19 @@ const Dashboard = () => {
     fetchRepositories()
       .then((data) => {
         setRepos(data);
-        if (data.length > 0) {
+        if (data.length > 0)
           setLastScan(data[0].LastScan || "No scan performed yet");
-        }
       })
       .catch(() => console.error("Error fetching repositories"));
   }, []);
 
-  const filteredRepos = useMemo(() => {
-    return repos.filter((repo) =>
-      repo.Name.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [repos, searchTerm]);
+  const filteredRepos = useMemo(
+    () =>
+      repos.filter((repo) =>
+        repo.Name.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [repos, searchTerm],
+  );
 
   const addRepository = async ({ url, name, version }) => {
     try {
@@ -58,10 +59,8 @@ const Dashboard = () => {
     try {
       await scanUpdatesAPI();
       fetchRepositories()
-        .then((data) => setRepos(data))
+        .then(setRepos)
         .catch(() => console.error("Error fetching repositories after scan"));
-    } catch {
-      console.error("Error scanning for updates");
     } finally {
       setIsScanning(false);
     }
@@ -116,12 +115,12 @@ const Dashboard = () => {
       </div>
 
       <div className="relative mb-8">
-        <FaSearch className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
+        <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
         <input
           type="text"
           placeholder="Search repositories..."
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="input-field pl-14 w-full h-14 text-lg rounded-lg border border-[var(--color-border)]"
+          className="input-field pl-14 w-full h-14 text-lg rounded-lg"
         />
       </div>
 
@@ -132,13 +131,11 @@ const Dashboard = () => {
           existingRepos={repos}
         />
       )}
-
       <RepoList
         repos={filteredRepos}
         deleteRepo={deleteRepo}
         showChangelog={showChangelog}
       />
-
       {changelog && (
         <ChangelogBox {...changelog} onClose={() => setChangelog(null)} />
       )}

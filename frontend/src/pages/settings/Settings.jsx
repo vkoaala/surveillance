@@ -16,7 +16,7 @@ const isValidCron = (value) => {
 };
 
 const Settings = ({ refreshBannerState }) => {
-  const { theme, updateTheme } = useTheme();
+  const { updateTheme } = useTheme();
   const [cronSchedule, setCronSchedule] = useState("");
   const [githubApiKey, setGithubApiKey] = useState("");
   const [tempTheme, setTempTheme] = useState("tokyoNight");

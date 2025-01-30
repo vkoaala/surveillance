@@ -13,31 +13,19 @@ const Header = ({ showBanner }) => {
         <nav className="flex items-center space-x-6">
           <Link
             to="/"
-            className={`transition text-2xl ${
-              isActive("/")
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-text)]"
-            }`}
+            className={`transition text-2xl ${isActive("/") ? "text-[var(--color-primary)]" : "text-[var(--color-text)]"}`}
           >
             <FaHome />
           </Link>
           <Link
             to="/notifications"
-            className={`transition text-2xl ${
-              isActive("/notifications")
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-text)]"
-            }`}
+            className={`transition text-2xl ${isActive("/notifications") ? "text-[var(--color-primary)]" : "text-[var(--color-text)]"}`}
           >
             <FaBell />
           </Link>
           <Link
             to="/settings"
-            className={`transition text-2xl ${
-              isActive("/settings")
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-text)]"
-            }`}
+            className={`transition text-2xl ${isActive("/settings") ? "text-[var(--color-primary)]" : "text-[var(--color-text)]"}`}
           >
             <FaCog />
           </Link>

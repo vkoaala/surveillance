@@ -10,13 +10,12 @@ const Toast = ({ type, message, duration = 3000, onClose }) => {
       setIsVisible(false);
       if (onClose) onClose();
     }, duration);
-
     return () => clearTimeout(timer);
   }, [duration, onClose]);
 
   if (!isVisible) return null;
 
-  const themeStyles = {
+  const themes = {
     tokyoNight: {
       bg: "bg-[var(--color-card)]",
       border:
@@ -43,14 +42,11 @@ const Toast = ({ type, message, duration = 3000, onClose }) => {
     },
   };
 
-  const currentTheme = themeStyles[theme] || themeStyles.tokyoNight;
+  const themeStyles = themes[theme] || themes.tokyoNight;
 
   return (
     <div
-      className={`
-        fixed top-[100px] right-10 z-50 py-3 px-6 rounded-lg shadow-lg border-l-4 transition-all
-        ${currentTheme.bg} ${currentTheme.border} ${currentTheme.text}
-      `}
+      className={`fixed top-[100px] right-10 z-50 py-3 px-6 rounded-lg shadow-lg border-l-4 transition-all ${themeStyles.bg} ${themeStyles.border} ${themeStyles.text}`}
     >
       {message}
     </div>

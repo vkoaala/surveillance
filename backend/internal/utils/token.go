@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// InitValidationRoutes sets up the route to validate GitHub API keys via the backend.
 func InitValidationRoutes(e *echo.Echo) {
 	e.POST("/api/validate-key", func(c echo.Context) error {
 		var payload struct {
@@ -17,6 +16,10 @@ func InitValidationRoutes(e *echo.Echo) {
 		}
 		if err := c.Bind(&payload); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+		}
+
+		if payload.ApiKey == "" {
+			return c.JSON(http.StatusOK, map[string]string{"message": "GitHub API key is empty but valid."})
 		}
 
 		if err := ValidateGitHubAPIKey(payload.ApiKey); err != nil {
@@ -27,7 +30,6 @@ func InitValidationRoutes(e *echo.Echo) {
 	})
 }
 
-// GetGitHubToken fetches and decrypts the stored GitHub token from the database.
 func GetGitHubToken(db *gorm.DB) string {
 	var settings models.Settings
 	if err := db.First(&settings).Error; err == nil && settings.GitHubAPIKey != "" {
@@ -39,8 +41,11 @@ func GetGitHubToken(db *gorm.DB) string {
 	return ""
 }
 
-// ValidateGitHubAPIKey checks if the provided GitHub API key is valid by hitting GitHub's user API.
 func ValidateGitHubAPIKey(apiKey string) error {
+	if apiKey == "" {
+		return nil
+	}
+
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))

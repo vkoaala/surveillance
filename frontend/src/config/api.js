@@ -8,50 +8,38 @@ export const fetchAPI = async (endpoint, options = {}) => {
   return response.json();
 };
 
-export const fetchSettings = async () => {
-  return fetchAPI("/settings");
-};
+export const fetchSettings = async () => fetchAPI("/settings");
 
-export const updateSettings = async (settings) => {
-  return fetchAPI("/settings", {
+export const updateSettings = async (settings) =>
+  fetchAPI("/settings", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),
   });
-};
 
-export const fetchRepositories = async () => {
-  return fetchAPI("/repositories");
-};
+export const fetchRepositories = async () => fetchAPI("/repositories");
 
-export const addRepositoryAPI = async (repo) => {
-  return fetchAPI("/repositories", {
+export const addRepositoryAPI = async (repo) =>
+  fetchAPI("/repositories", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(repo),
   });
-};
 
-export const deleteRepositoryAPI = async (id) => {
-  return fetchAPI(`/repositories/${id}`, { method: "DELETE" });
-};
+export const deleteRepositoryAPI = async (id) =>
+  fetchAPI(`/repositories/${id}`, { method: "DELETE" });
 
-export const scanUpdatesAPI = async () => {
-  return fetchAPI("/scan-updates", { method: "POST" });
-};
+export const scanUpdatesAPI = async () =>
+  fetchAPI("/scan-updates", { method: "POST" });
 
-export const fetchChangelog = async (id) => {
-  return fetchAPI(`/repositories/${id}/changelog`);
-};
+export const fetchChangelog = async (id) =>
+  fetchAPI(`/repositories/${id}/changelog`);
 
-export const fetchNotificationSettings = async () => {
-  return fetchAPI("/notifications");
-};
+export const fetchNotificationSettings = async () => fetchAPI("/notifications");
 
-export const updateNotificationSettings = async (settings) => {
-  return fetchAPI("/notifications", {
+export const updateNotificationSettings = async (settings) =>
+  fetchAPI("/notifications", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),
   });
-};

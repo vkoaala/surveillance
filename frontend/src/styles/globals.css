@@ -7,6 +7,8 @@
   --color-primary: #7aa2f7;
   --color-primary-hover: #3b82f6;
   --color-border: #3b4261;
+  --color-border-light: #4b526d;
+  /* Clean subtle border color */
 }
 
 /* Global styles */
@@ -31,23 +33,39 @@ body {
   @apply bg-gray-600 text-white hover:bg-gray-700 hover:-translate-y-1;
 }
 
-/* Input Fields */
-.input-field {
-  @apply w-full h-14 p-4 pl-14 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+.button-group {
+  @apply flex gap-3 justify-end;
 }
 
-.input-field-no-icon {
-  padding-left: 1rem;
+/* Input Fields */
+.input-field {
+  @apply w-full h-14 pl-12 pr-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+}
+
+/* Version input takes 50% width */
+
+.input-version {
+  @apply h-14 pl-12 pr-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+}
+
+/* Flex container to align version input and buttons */
+.input-row {
+  @apply flex items-center justify-between gap-4 mt-4;
+}
+
+/* Modal container with clean border */
+.modal-container {
+  @apply p-6 rounded-lg shadow-md border border-[var(--color-border-light)] bg-[var(--color-card)];
+}
+
+/* Titles for form sections */
+.input-title {
+  @apply text-sm font-semibold text-gray-300 mb-2;
 }
 
 /* Card Styling */
 .card {
   @apply bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)];
-}
-
-/* Markdown Styling */
-.prose-invert {
-  @apply text-[var(--color-text)] leading-relaxed;
 }
 
 /* Headings */
@@ -57,63 +75,11 @@ body {
   @apply text-[var(--color-primary)] font-bold mt-4;
 }
 
-/* Lists */
-.prose-invert ul {
-  @apply list-disc pl-5;
+/* Repo List Styles */
+.repo-name {
+  @apply text-[var(--color-primary)] font-bold text-lg hover:underline;
 }
 
-.prose-invert ol {
-  @apply list-decimal pl-5;
-}
-
-/* Links */
-.prose-invert a {
-  @apply text-[var(--color-primary-hover)] underline;
-}
-
-/* Blockquote Styling */
-.prose-invert blockquote {
-  @apply border-l-4 border-[var(--color-primary)] pl-4 italic text-gray-400;
-}
-
-/* Code Block Styling */
-.prose-invert pre {
-  @apply bg-[var(--color-card)] text-[var(--color-primary)] p-4 rounded-lg overflow-x-auto;
-}
-
-.prose-invert pre code {
-  @apply bg-transparent text-[var(--color-primary)];
-}
-
-/* Inline Code Styling */
-.prose-invert code {
-  @apply bg-[var(--color-card)] text-[var(--color-primary)] px-1 rounded;
-}
-
-/* Scrollable Content (Dynamic Changelog Box) */
-.changelog-scroll {
-  max-height: 90%;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding-right: 10px;
-  word-wrap: break-word;
-  word-break: break-word;
-}
-
-/* Styled Scrollbar */
-.changelog-scroll::-webkit-scrollbar {
-  width: 8px;
-}
-
-.changelog-scroll::-webkit-scrollbar-track {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.changelog-scroll::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: 4px;
-}
-
-.changelog-scroll::-webkit-scrollbar-thumb:hover {
-  background: var(--color-primary);
+.error-message {
+  @apply text-red-500 text-sm mt-2;
 }
