@@ -2,7 +2,12 @@ import { useState, useEffect, useMemo } from "react";
 import RepoList from "@/components/RepoList";
 import AddRepoModal from "@/components/modals/AddRepoModal";
 import { FaPlus, FaSyncAlt, FaSearch } from "react-icons/fa";
-import { fetchAPI } from "@/config/api";
+import {
+  fetchRepositories,
+  addRepositoryAPI,
+  deleteRepositoryAPI,
+  scanUpdatesAPI,
+} from "@/config/api";
 import ChangelogBox from "@/components/ui/ChangelogBox";
 
 const Dashboard = () => {
@@ -14,7 +19,7 @@ const Dashboard = () => {
   const [changelog, setChangelog] = useState(null);
 
   useEffect(() => {
-    fetchAPI("/repositories")
+    fetchRepositories()
       .then((data) => {
         setRepos(data);
         if (data.length > 0) {
@@ -32,11 +37,7 @@ const Dashboard = () => {
 
   const addRepository = async ({ url, name, version }) => {
     try {
-      const newRepo = await fetchAPI("/repositories", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, name, version }),
-      });
+      const newRepo = await addRepositoryAPI({ url, name, version });
       setRepos((prev) => [...prev, newRepo]);
     } catch {
       console.error("Error adding repository");
@@ -45,7 +46,7 @@ const Dashboard = () => {
 
   const deleteRepo = async (id) => {
     try {
-      await fetchAPI(`/repositories/${id}`, { method: "DELETE" });
+      await deleteRepositoryAPI(id);
       setRepos((prev) => prev.filter((repo) => repo.ID !== id));
     } catch {
       console.error("Error deleting repository");
@@ -55,8 +56,8 @@ const Dashboard = () => {
   const scanForUpdates = async () => {
     setIsScanning(true);
     try {
-      await fetchAPI("/scan-updates", { method: "POST" });
-      fetchAPI("/repositories")
+      await scanUpdatesAPI();
+      fetchRepositories()
         .then((data) => setRepos(data))
         .catch(() => console.error("Error fetching repositories after scan"));
     } catch {
@@ -132,14 +133,12 @@ const Dashboard = () => {
         />
       )}
 
-      {/* Pass showChangelog to RepoList */}
       <RepoList
         repos={filteredRepos}
         deleteRepo={deleteRepo}
         showChangelog={showChangelog}
       />
 
-      {/* Render the ChangelogBox if changelog state is set */}
       {changelog && (
         <ChangelogBox {...changelog} onClose={() => setChangelog(null)} />
       )}

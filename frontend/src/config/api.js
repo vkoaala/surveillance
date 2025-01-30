@@ -19,3 +19,39 @@ export const updateSettings = async (settings) => {
     body: JSON.stringify(settings),
   });
 };
+
+export const fetchRepositories = async () => {
+  return fetchAPI("/repositories");
+};
+
+export const addRepositoryAPI = async (repo) => {
+  return fetchAPI("/repositories", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(repo),
+  });
+};
+
+export const deleteRepositoryAPI = async (id) => {
+  return fetchAPI(`/repositories/${id}`, { method: "DELETE" });
+};
+
+export const scanUpdatesAPI = async () => {
+  return fetchAPI("/scan-updates", { method: "POST" });
+};
+
+export const fetchChangelog = async (id) => {
+  return fetchAPI(`/repositories/${id}/changelog`);
+};
+
+export const fetchNotificationSettings = async () => {
+  return fetchAPI("/notifications");
+};
+
+export const updateNotificationSettings = async (settings) => {
+  return fetchAPI("/notifications", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+};

@@ -93,17 +93,11 @@ body {
 /* Scrollable Content (Dynamic Changelog Box) */
 .changelog-scroll {
   max-height: 90%;
-  /* Allows dynamic adjustment with scrolling for very long content */
   overflow-y: auto;
-  /* Enables vertical scrolling */
   overflow-x: hidden;
-  /* Prevents horizontal scrolling */
   padding-right: 10px;
-  /* Avoids scrollbar overlapping the text */
   word-wrap: break-word;
-  /* Wraps long text */
   word-break: break-word;
-  /* Breaks long words cleanly */
 }
 
 /* Styled Scrollbar */

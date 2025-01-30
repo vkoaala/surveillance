@@ -1,5 +1,3 @@
-/* Scoped styles for the Settings page */
-/* Base layout adjustments */
 .settings {
     display: flex;
     flex-direction: column;

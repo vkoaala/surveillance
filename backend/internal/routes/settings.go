@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"surveillance/internal/models"
-	"surveillance/internal/services"
 	"surveillance/internal/utils"
 
 	"github.com/labstack/echo/v4"
@@ -18,17 +17,15 @@ func InitSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *
 		if err := db.First(&settings).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve settings"})
 		}
-		if settings.GitHubAPIKey == "" {
-			return c.JSON(http.StatusOK, map[string]string{
-				"githubApiKey": "",
-				"cronSchedule": settings.CronSchedule,
-				"theme":        settings.Theme,
-			})
+
+		decryptedAPIKey := ""
+		if settings.GitHubAPIKey != "" {
+			decrypted, err := utils.DecryptAES(settings.GitHubAPIKey, settings.EncryptionKey)
+			if err == nil {
+				decryptedAPIKey = decrypted
+			}
 		}
-		decryptedAPIKey, err := utils.DecryptAES(settings.GitHubAPIKey, settings.EncryptionKey)
-		if err != nil {
-			decryptedAPIKey = ""
-		}
+
 		return c.JSON(http.StatusOK, map[string]string{
 			"githubApiKey": decryptedAPIKey,
 			"cronSchedule": settings.CronSchedule,
@@ -41,53 +38,54 @@ func InitSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *
 			Theme        string `json:"theme"`
 			CronSchedule string `json:"cronSchedule"`
 			GitHubAPIKey string `json:"githubApiKey"`
+			IsReset      bool   `json:"isReset"` // To track if reset button was pressed
 		}
+
 		if err := c.Bind(&newSettings); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
 		}
+
 		var settings models.Settings
 		if err := db.First(&settings).Error; err != nil {
 			return c.JSON(http.StatusNotFound, map[string]string{"error": "No settings found"})
 		}
+
 		if settings.EncryptionKey == "" {
 			settings.EncryptionKey = utils.GenerateEncryptionKey()
 			db.Save(&settings)
 		}
-		if newSettings.GitHubAPIKey != "" {
+
+		// Handle API key logic
+		if newSettings.IsReset {
+			settings.GitHubAPIKey = "" // Clear the saved key
+			log.Println("⚠️  GitHub API key cleared via reset button.")
+		} else if newSettings.GitHubAPIKey != "" && newSettings.GitHubAPIKey != "●●●●●●●●" {
+			// If a new API key is provided, validate and save it
+			if err := utils.ValidateGitHubAPIKey(newSettings.GitHubAPIKey); err != nil {
+				return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid GitHub API key"})
+			}
+
+			// Encrypt and save the validated key
 			encryptedAPIKey, err := utils.EncryptAES(newSettings.GitHubAPIKey, settings.EncryptionKey)
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to encrypt API key"})
 			}
 			settings.GitHubAPIKey = encryptedAPIKey
+			log.Println("✅ GitHub API key validated and saved.")
 		}
-		scheduleUpdated := false
-		if newSettings.CronSchedule != "" && newSettings.CronSchedule != settings.CronSchedule {
+
+		// Update cron and theme if provided
+		if newSettings.CronSchedule != "" {
 			settings.CronSchedule = newSettings.CronSchedule
-			scheduleUpdated = true
 		}
-		if newSettings.Theme != "" && newSettings.Theme != settings.Theme {
+		if newSettings.Theme != "" {
 			settings.Theme = newSettings.Theme
 		}
+
 		if err := db.Save(&settings).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to save settings"})
 		}
-		if scheduleUpdated {
-			scheduler.Stop()
-			if *jobID != 0 {
-				scheduler.Remove(*jobID)
-			}
-			newID, err := scheduler.AddFunc(settings.CronSchedule, func() {
-				log.Println("Running scheduled repository scan...")
-				services.MonitorRepositories(db)
-			})
-			if err != nil {
-				scheduler.Start()
-				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update cron schedule"})
-			}
-			*jobID = newID
-			scheduler.Start()
-			log.Printf("Cron schedule updated to: %s", settings.CronSchedule)
-		}
-		return c.JSON(http.StatusOK, map[string]string{"message": "Settings updated"})
+
+		return c.JSON(http.StatusOK, map[string]string{"message": "Settings updated successfully"})
 	})
 }

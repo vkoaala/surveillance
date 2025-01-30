@@ -9,7 +9,6 @@ import (
 	"log"
 )
 
-// Generate a new AES encryption key (32 bytes)
 func GenerateEncryptionKey() string {
 	key := make([]byte, 32)
 	_, err := rand.Read(key)
@@ -20,7 +19,6 @@ func GenerateEncryptionKey() string {
 	return base64.StdEncoding.EncodeToString(key)
 }
 
-// Normalize and validate AES encryption key
 func NormalizeAESKey(encodedKey string) ([]byte, error) {
 	rawKey, err := base64.StdEncoding.DecodeString(encodedKey)
 	if err != nil || len(rawKey) != 32 {
@@ -30,7 +28,6 @@ func NormalizeAESKey(encodedKey string) ([]byte, error) {
 	return rawKey, nil
 }
 
-// Encrypt a string using AES
 func EncryptAES(plainText, encodedKey string) (string, error) {
 	key, err := NormalizeAESKey(encodedKey)
 	if err != nil {
@@ -59,7 +56,6 @@ func EncryptAES(plainText, encodedKey string) (string, error) {
 	return encryptedText, nil
 }
 
-// Decrypt a string using AES
 func DecryptAES(cipherText, encodedKey string) (string, error) {
 	if cipherText == "" || encodedKey == "" {
 		log.Println("❌ [Decryption] Missing encrypted text or key")

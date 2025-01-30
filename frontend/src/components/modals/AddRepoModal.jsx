@@ -7,8 +7,6 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const githubToken = localStorage.getItem("githubApiKey") || null;
-
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Enter") handleAddRepo();
@@ -16,7 +14,7 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [setIsAdding]);
 
   const validateRepoInput = (input) => {
     const trimmed = input.trim();
@@ -34,36 +32,6 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
     return null;
   };
 
-  const fetchRepoDetails = async (repoUrl) => {
-    try {
-      const match = repoUrl.match(/github\.com\/([\w-]+\/[\w.-]+)/);
-      if (!match) {
-        setError("Invalid GitHub repository URL.");
-        return null;
-      }
-      const repoName = match[1];
-      const headers = githubToken
-        ? { Authorization: `Bearer ${githubToken}` }
-        : {};
-      const response = await fetch(
-        `https://api.github.com/repos/${repoName}/releases/latest`,
-        { headers },
-      );
-      if (response.ok) {
-        const data = await response.json();
-        return { name: repoName, version: data.tag_name };
-      } else if (response.status === 404) {
-        return { name: repoName, version: "No releases found" };
-      } else {
-        throw new Error("Failed to fetch repository details.");
-      }
-    } catch (err) {
-      setError("Error fetching repository details.");
-      console.error(err);
-      return null;
-    }
-  };
-
   const handleAddRepo = async () => {
     setError("");
     setIsLoading(true);
@@ -75,13 +43,11 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
       return;
     }
 
-    // Strip anything after owner/repo
     validRepoUrl = validRepoUrl.replace(
       /^(https:\/\/(?:www\.)?github\.com\/[\w-]+\/[\w.-]+)(?:\/.*)?$/,
       "$1",
     );
 
-    // Front-end check if this URL is already present
     const alreadyPresent = existingRepos.some(
       (r) => r.URL.toLowerCase() === validRepoUrl.toLowerCase(),
     );
@@ -91,23 +57,20 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
       return;
     }
 
-    let repoDetails = {
-      name: "",
-      version: currentVersion.trim() || "latest",
-    };
-    if (!currentVersion.trim()) {
-      const details = await fetchRepoDetails(validRepoUrl);
-      if (!details) {
-        setIsLoading(false);
-        return;
-      }
-      repoDetails = details;
+    const match = validRepoUrl.match(
+      /https:\/\/github\.com\/([\w-]+\/[\w.-]+)/,
+    );
+    if (!match || match.length < 2) {
+      setError("Invalid repository URL format.");
+      setIsLoading(false);
+      return;
     }
+    const name = match[1];
 
     const payload = {
       url: validRepoUrl,
-      name: repoDetails.name,
-      version: repoDetails.version,
+      name: name,
+      version: currentVersion.trim() || "latest",
     };
 
     try {
