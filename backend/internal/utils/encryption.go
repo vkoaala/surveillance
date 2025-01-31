@@ -6,20 +6,27 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"io"
 )
 
 func GenerateEncryptionKey() string {
 	Logger.Info("Generating encryption key.")
 	key := make([]byte, 32)
-	rand.Read(key)
+	if _, err := rand.Read(key); err != nil {
+		Logger.Fatal("Failed to generate encryption key: ", err)
+	}
 	return base64.StdEncoding.EncodeToString(key)
 }
 
 func NormalizeAESKey(encodedKey string) ([]byte, error) {
 	key, err := base64.StdEncoding.DecodeString(encodedKey)
-	if err != nil || len(key) != 32 {
-		Logger.Error("Invalid AES encryption key provided.")
-		return nil, errors.New("invalid AES encryption key")
+	if err != nil {
+		Logger.Error("Invalid base64-encoded AES key.")
+		return nil, errors.New("invalid base64-encoded AES key")
+	}
+	if len(key) != 32 {
+		Logger.Error("Invalid AES encryption key length.")
+		return nil, errors.New("invalid AES encryption key length, must be 32 bytes")
 	}
 	return key, nil
 }
@@ -36,14 +43,22 @@ func EncryptAES(plainText, encodedKey string) (string, error) {
 		return "", err
 	}
 
-	cipherText := make([]byte, aes.BlockSize+len(plainText))
-	iv := cipherText[:aes.BlockSize]
-	rand.Read(iv)
+	nonce := make([]byte, 12)
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		Logger.Error("Failed to generate nonce.")
+		return "", err
+	}
 
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(cipherText[aes.BlockSize:], []byte(plainText))
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		Logger.Error("Failed to create GCM block cipher.")
+		return "", err
+	}
 
-	return base64.StdEncoding.EncodeToString(cipherText), nil
+	cipherText := aesGCM.Seal(nil, nonce, []byte(plainText), nil)
+
+	finalOutput := append(nonce, cipherText...)
+	return base64.StdEncoding.EncodeToString(finalOutput), nil
 }
 
 func DecryptAES(cipherText, encodedKey string) (string, error) {
@@ -63,17 +78,30 @@ func DecryptAES(cipherText, encodedKey string) (string, error) {
 		return "", err
 	}
 
-	data, err := base64.StdEncoding.DecodeString(cipherText)
-	if err != nil || len(data) < aes.BlockSize {
-		Logger.Error("Invalid encrypted data provided.")
-		return "", errors.New("invalid encrypted data")
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		Logger.Error("Failed to create GCM block cipher for decryption.")
+		return "", err
 	}
 
-	iv := data[:aes.BlockSize]
-	decrypted := make([]byte, len(data)-aes.BlockSize)
+	decodedCipherText, err := base64.StdEncoding.DecodeString(cipherText)
+	if err != nil {
+		Logger.Error("Failed to decode base64 ciphertext.")
+		return "", errors.New("invalid base64-encoded ciphertext")
+	}
 
-	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(decrypted, data[aes.BlockSize:])
+	if len(decodedCipherText) < 12+aesGCM.Overhead() {
+		Logger.Error("Ciphertext too short to be valid.")
+		return "", errors.New("invalid ciphertext length")
+	}
 
-	return string(decrypted), nil
+	nonce, cipherData := decodedCipherText[:12], decodedCipherText[12:]
+
+	plainText, err := aesGCM.Open(nil, nonce, cipherData, nil)
+	if err != nil {
+		Logger.Error("Failed to decrypt or verify the ciphertext.")
+		return "", errors.New("decryption failed or authentication check failed")
+	}
+
+	return string(plainText), nil
 }

@@ -8,4 +8,5 @@ type Settings struct {
 	GitHubAPIKey  string
 	CronSchedule  string
 	Theme         string
+	LastScan      string
 }

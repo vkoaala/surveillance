@@ -38,6 +38,7 @@ func ensureDefaultSettings(db *gorm.DB) {
 			CronSchedule:  "0 */12 * * *",
 			GitHubAPIKey:  "",
 			EncryptionKey: utils.GenerateEncryptionKey(),
+			LastScan:      "No scan performed yet",
 		})
 	}
 }
