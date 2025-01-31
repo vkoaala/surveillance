@@ -2,9 +2,8 @@ import { useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import Toast from "@/components/ui/Toast";
 import { FaGithub, FaLock, FaClock, FaPalette } from "react-icons/fa";
-import { fetchSettings, updateSettings } from "@/config/api";
+import { fetchSettings, updateSettings, validateApiKey } from "@/config/api";
 import cronParser from "cron-parser";
-import { fetchAPI } from "@/config/api";
 
 const isValidCron = (value) => {
   if (!value.trim()) return false;
@@ -59,12 +58,8 @@ const Settings = ({ refreshBannerState }) => {
     if (githubApiKey === "●●●●●●●●" || isLocked) return true;
 
     try {
-      const res = await fetchAPI("/api/validate-key", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey: githubApiKey.trim() }),
-      });
-      if (res.message === "GitHub API key is valid") return true;
+      const isValid = await validateApiKey(githubApiKey.trim());
+      if (isValid) return true;
     } catch {
       setErrors((prev) => ({
         ...prev,
@@ -87,20 +82,14 @@ const Settings = ({ refreshBannerState }) => {
 
   const handleSaveSettings = async () => {
     if (!validateForm()) return;
-
     if (!(await validateGitHubKey())) return;
 
     setSaving(true);
     try {
       let apiKeyToSave = "";
-
-      if (isLocked) {
-        apiKeyToSave = "LOCKED";
-      } else if (githubApiKey.trim() === "") {
-        apiKeyToSave = "";
-      } else if (githubApiKey !== "●●●●●●●●") {
-        apiKeyToSave = githubApiKey.trim();
-      }
+      if (isLocked) apiKeyToSave = "LOCKED";
+      else if (githubApiKey.trim() === "") apiKeyToSave = "";
+      else if (githubApiKey !== "●●●●●●●●") apiKeyToSave = githubApiKey.trim();
 
       await updateSettings({
         cronSchedule,
@@ -135,7 +124,6 @@ const Settings = ({ refreshBannerState }) => {
         theme: tempTheme,
         isReset: true,
       });
-
       setGithubApiKey("");
       setIsLocked(false);
       showToast("success", "API key reset successfully.");

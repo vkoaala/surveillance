@@ -1,41 +1,126 @@
-export const API_BASE_URL = "http://localhost:8080";
+import axios from "axios";
 
-export const fetchAPI = async (endpoint, options = {}) => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-  if (!response.ok) {
-    throw new Error(`API request failed: ${response.statusText}`);
+const api = axios.create({
+  baseURL: "http://localhost:8080",
+  headers: {
+    "Content-Type": "application/json",
+  },
+});
+
+const handleApiError = (error) => {
+  if (error.response) {
+    switch (error.response.status) {
+      case 400:
+        throw new Error("Bad request. Please check your input.");
+      case 401:
+        throw new Error("Unauthorized. Please log in.");
+      case 404:
+        throw new Error("Resource not found.");
+      default:
+        throw new Error(
+          error.response.data?.error || "An unexpected error occurred",
+        );
+    }
   }
-  return response.json();
+  throw new Error("Network or server error");
 };
 
-export const fetchSettings = async () => fetchAPI("/settings");
+export const fetchSettings = async () => {
+  try {
+    const { data } = await api.get("/settings");
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
 
-export const updateSettings = async (settings) =>
-  fetchAPI("/settings", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(settings),
-  });
+export const updateSettings = async (settings) => {
+  try {
+    const { data } = await api.post("/settings", settings);
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
 
-export const fetchRepositories = async () => fetchAPI("/repositories");
+export const fetchRepositories = async () => {
+  try {
+    const { data } = await api.get("/repositories");
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
 
-export const addRepositoryAPI = async (repo) =>
-  fetchAPI("/repositories", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(repo),
-  });
+export const addRepositoryAPI = async (repo) => {
+  try {
+    const { data } = await api.post("/repositories", repo);
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
 
-export const deleteRepositoryAPI = async (id) =>
-  fetchAPI(`/repositories/${id}`, { method: "DELETE" });
+export const deleteRepositoryAPI = async (id) => {
+  try {
+    const { data } = await api.delete(`/repositories/${id}`);
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
 
-export const scanUpdatesAPI = async () =>
-  fetchAPI("/scan-updates", { method: "POST" });
+export const scanUpdatesAPI = async () => {
+  try {
+    const { data } = await api.post("/scan-updates");
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
 
 export const fetchChangelog = async (id) => {
-  return fetchAPI(`/repositories/${id}/changelog`, {
-    method: "GET",
-  });
+  try {
+    const { data } = await api.get(`/repositories/${id}/changelog`);
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
 };
 
-export const fetchScanStatus = async () => fetchAPI("/scan-status");
+export const fetchScanStatus = async () => {
+  try {
+    const { data } = await api.get("/scan-status");
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+export const validateApiKey = async (apiKey) => {
+  try {
+    const { data } = await api.post("/api/validate-key", { apiKey });
+    return data?.message === "GitHub API key is valid";
+  } catch (error) {
+    handleApiError(error);
+    return false;
+  }
+};
+
+export const fetchNotifications = async () => {
+  try {
+    const { data } = await api.get("/notifications");
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+export const updateNotifications = async (settings) => {
+  try {
+    const { data } = await api.post("/notifications", settings);
+    return data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};

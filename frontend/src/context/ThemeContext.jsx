@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { fetchAPI } from "@/config/api";
-
+import { fetchSettings, updateSettings } from "@/config/api";
 const themes = {
   tokyoNight: {
     "--color-bg": "#1a1b26",
@@ -31,7 +30,7 @@ export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState("tokyoNight");
 
   useEffect(() => {
-    fetchAPI("/settings")
+    fetchSettings()
       .then((settings) => {
         if (settings.theme) {
           setTheme(settings.theme);
@@ -50,11 +49,9 @@ export const ThemeProvider = ({ children }) => {
 
   const updateTheme = (newTheme) => {
     setTheme(newTheme);
-    fetchAPI("/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ theme: newTheme }),
-    }).catch(() => console.error("Error saving theme setting"));
+    updateSettings({ theme: newTheme }).catch(() =>
+      console.error("Error saving theme setting"),
+    );
     applyTheme(newTheme);
   };
 

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { FaLink, FaUser, FaCamera, FaCommentDots } from "react-icons/fa";
 import Toast from "@/components/ui/Toast";
-import { fetchAPI } from "@/config/api";
+import { fetchNotifications, updateNotifications } from "@/config/api";
 
 const Notifications = () => {
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -12,7 +12,7 @@ const Notifications = () => {
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    fetchAPI("/notifications")
+    fetchNotifications()
       .then((settings) => {
         setWebhookUrl(settings.WebhookURL || "");
         setDiscordName(settings.DiscordName || "");
@@ -46,15 +46,11 @@ const Notifications = () => {
   const handleSaveSettings = async () => {
     if (!validateForm()) return;
     try {
-      await fetchAPI("/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          WebhookURL: webhookUrl,
-          DiscordName: discordName,
-          DiscordAvatar: discordAvatar,
-          NotificationMessage: message,
-        }),
+      await updateNotifications({
+        WebhookURL: webhookUrl,
+        DiscordName: discordName,
+        DiscordAvatar: discordAvatar,
+        NotificationMessage: message,
       });
       showToast("success", "Notification settings saved!");
     } catch {
@@ -89,7 +85,10 @@ const Notifications = () => {
                 type="text"
                 value={webhookUrl}
                 onChange={(e) => setWebhookUrl(e.target.value)}
-                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.webhookUrl ? "border-red-500" : "border-[var(--color-border)]"}`}
+                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.webhookUrl
+                    ? "border-red-500"
+                    : "border-[var(--color-border)]"
+                  }`}
               />
             </div>
             {errors.webhookUrl && (
@@ -118,7 +117,10 @@ const Notifications = () => {
                 type="text"
                 value={discordAvatar}
                 onChange={(e) => setDiscordAvatar(e.target.value)}
-                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.discordAvatar ? "border-red-500" : "border-[var(--color-border)]"}`}
+                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.discordAvatar
+                    ? "border-red-500"
+                    : "border-[var(--color-border)]"
+                  }`}
               />
             </div>
             {errors.discordAvatar && (
@@ -138,7 +140,10 @@ const Notifications = () => {
                 type="text"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.message ? "border-red-500" : "border-[var(--color-border)]"}`}
+                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.message
+                    ? "border-red-500"
+                    : "border-[var(--color-border)]"
+                  }`}
               />
             </div>
             {errors.message && (
