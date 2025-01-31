@@ -5,12 +5,14 @@ import (
 	"surveillance/internal/models"
 	"surveillance/internal/services"
 	"surveillance/internal/utils"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 )
 
 func InitRepositoryRoutes(e *echo.Echo, db *gorm.DB) {
+
 	e.POST("/repositories", func(ctx echo.Context) error {
 		var payload struct {
 			Name    string `json:"name"`
@@ -22,7 +24,7 @@ func InitRepositoryRoutes(e *echo.Echo, db *gorm.DB) {
 		}
 
 		githubToken := utils.GetGitHubToken(db)
-		utils.Logger.Infof("Handling request to add a new repository: %s", payload.Name)
+		utils.Logger.Infof("🟣 Initial scan started for %s", payload.Name)
 
 		releaseVersion, releaseDate, changelog := services.GetLatestReleaseInfo(payload.Name, githubToken)
 		if releaseVersion == "" {
@@ -44,7 +46,10 @@ func InitRepositoryRoutes(e *echo.Echo, db *gorm.DB) {
 			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to add repository"})
 		}
 
-		utils.Logger.Infof("Successfully added repository: %s (%s)", repo.Name, repo.URL)
+		formattedDate := formatReleaseDate(releaseDate)
+		utils.Logger.Infof("Latest release for %s: %s - %s", payload.Name, releaseVersion, formattedDate)
+		utils.Logger.Infof("🟣 Initial scan finished for %s\n", payload.Name)
+
 		return ctx.JSON(http.StatusCreated, repo)
 	})
 
@@ -81,11 +86,20 @@ func InitRepositoryRoutes(e *echo.Echo, db *gorm.DB) {
 	})
 
 	e.DELETE("/repositories/:id", func(ctx echo.Context) error {
-		if err := db.Delete(&models.Repository{}, ctx.Param("id")).Error; err != nil {
+		repoID := ctx.Param("id")
+		var repo models.Repository
+
+		if err := db.First(&repo, repoID).Error; err != nil {
+			utils.Logger.Error("Repository not found: ", err)
+			return ctx.JSON(http.StatusNotFound, map[string]string{"error": "Repository not found"})
+		}
+
+		if err := db.Delete(&repo).Error; err != nil {
 			utils.Logger.Error("Error deleting repository: ", err)
 			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete repository"})
 		}
-		utils.Logger.Info("Repository deleted successfully.")
+
+		utils.Logger.Infof("🗑️ Repository '%s' deleted successfully", repo.Name)
 		return ctx.JSON(http.StatusOK, map[string]string{"message": "Repository deleted"})
 	})
 }
@@ -95,4 +109,12 @@ func ifEmpty(value, fallback string) string {
 		return fallback
 	}
 	return value
+}
+
+func formatReleaseDate(date string) string {
+	parsedDate, err := time.Parse(time.RFC3339, date)
+	if err != nil {
+		return date
+	}
+	return parsedDate.Format("Jan 02 2006")
 }

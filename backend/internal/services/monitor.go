@@ -42,29 +42,28 @@ func GetLatestReleaseInfo(repoName, githubToken string) (string, string, string)
 	}
 
 	date, _ := time.Parse(time.RFC3339, release.PublishedAt)
-	utils.Logger.Infof("Latest release for %s: %s (published on %s)", repoName, release.TagName, release.PublishedAt)
 	return release.TagName, date.Format("Jan 02 2006"), release.Body
 }
 
-func MonitorRepositories(db *gorm.DB, githubToken, nextScanTime string, isManual bool) error {
-	scanType := "Scheduled"
-	if isManual {
-		scanType = "Manual"
-	}
-
+func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual bool) error {
 	var repos []models.Repository
 	if err := db.Find(&repos).Error; err != nil {
 		utils.Logger.Error("❌ Failed to retrieve repositories: ", err)
 		return err
 	}
 
-	utils.Logger.Infof("\n🔵 %s scan started for %d repositories.\n", scanType, len(repos))
+	emoji := "🟢"
+	if isManual {
+		emoji = "🔵"
+	}
+
+	utils.Logger.Infof("%s %s Automatic scan started for %d repositories\n", emoji, scanType, len(repos))
 
 	updates := []string{}
 	for _, repo := range repos {
 		latestVersion, lastUpdated, _ := GetLatestReleaseInfo(repo.Name, githubToken)
 		if latestVersion != "" && repo.CurrentVersion != latestVersion {
-			updates = append(updates, fmt.Sprintf("- %s: %s -> %s", repo.Name, repo.CurrentVersion, latestVersion))
+			updates = append(updates, fmt.Sprintf("%s: %s -> %s", repo.Name, repo.CurrentVersion, latestVersion))
 			repo.CurrentVersion = latestVersion
 			repo.LatestRelease = latestVersion
 			repo.LastUpdated = lastUpdated
@@ -76,11 +75,12 @@ func MonitorRepositories(db *gorm.DB, githubToken, nextScanTime string, isManual
 			utils.Logger.Error("❌ Failed to update repositories: ", err)
 			return err
 		}
-		utils.Logger.Infof("🔄 Updates found:\n%s\n", formatUpdates(updates))
-		utils.Logger.Infof("✅ Scan finished - %d updates applied.\n", len(updates))
+		utils.Logger.Infof("%s\n", formatUpdates(updates))
 	} else {
-		utils.Logger.Info("✅ Scan finished - All repositories are up to date.\n")
+		utils.Logger.Info("All repositories are up to date")
 	}
+
+	utils.Logger.Infof("%s %s Automatic scan finished\n\n", emoji, scanType)
 	return nil
 }
 
