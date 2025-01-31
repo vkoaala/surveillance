@@ -7,22 +7,24 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-// InitValidationRoutes initializes the route for GitHub API key validation.
 func InitValidationRoutes(e *echo.Echo) {
 	e.POST("/api/validate-key", func(c echo.Context) error {
-		var payload struct {
+		utils.Logger.Info("Validating GitHub API key.")
+		var input struct {
 			ApiKey string `json:"apiKey"`
 		}
 
-		if err := c.Bind(&payload); err != nil {
+		if err := c.Bind(&input); err != nil {
+			utils.Logger.Error("Invalid payload for API key validation.")
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
 		}
 
-		// Validate the API key using the utility function
-		if err := utils.ValidateGitHubAPIKey(payload.ApiKey); err != nil {
+		if err := utils.ValidateGitHubAPIKey(input.ApiKey); err != nil {
+			utils.Logger.Error("GitHub API key validation failed: ", err)
 			return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		}
 
+		utils.Logger.Info("GitHub API key validation succeeded.")
 		return c.JSON(http.StatusOK, map[string]string{"message": "GitHub API key is valid"})
 	})
 }

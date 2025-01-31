@@ -5,44 +5,30 @@ import (
 	"net/http"
 	"surveillance/internal/models"
 
-	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
 )
 
-func InitValidationRoutes(e *echo.Echo) {
-	e.POST("/api/validate-key", func(c echo.Context) error {
-		var payload struct {
-			ApiKey string `json:"apiKey"`
-		}
-		if err := c.Bind(&payload); err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
-		}
-
-		if payload.ApiKey == "" {
-			return c.JSON(http.StatusOK, map[string]string{"message": "GitHub API key is empty but valid."})
-		}
-
-		if err := ValidateGitHubAPIKey(payload.ApiKey); err != nil {
-			return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
-		}
-
-		return c.JSON(http.StatusOK, map[string]string{"message": "GitHub API key is valid"})
-	})
-}
+var isAPILogged = false
 
 func GetGitHubToken(db *gorm.DB) string {
 	var settings models.Settings
-	if err := db.First(&settings).Error; err == nil && settings.GitHubAPIKey != "" {
+	if err := db.First(&settings).Error; err == nil {
+		if settings.GitHubAPIKey == "" {
+			return ""
+		}
+
 		token, err := DecryptAES(settings.GitHubAPIKey, settings.EncryptionKey)
 		if err == nil {
 			return token
 		}
+		Logger.Warn("Failed to decrypt GitHub token.")
 	}
 	return ""
 }
 
 func ValidateGitHubAPIKey(apiKey string) error {
 	if apiKey == "" {
+		Logger.Info("No GitHub API key set. Proceeding with unauthenticated GitHub API requests.")
 		return nil
 	}
 
@@ -52,13 +38,16 @@ func ValidateGitHubAPIKey(apiKey string) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("GitHub API request failed: %v", err)
+		Logger.Error("GitHub API request failed: ", err)
+		return fmt.Errorf("GitHub API request failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("GitHub API key validation failed: %s", http.StatusText(resp.StatusCode))
+		Logger.Error("GitHub API key validation failed with status: ", http.StatusText(resp.StatusCode))
+		return fmt.Errorf("GitHub API key validation failed")
 	}
 
+	Logger.Info("GitHub API key successfully validated.")
 	return nil
 }

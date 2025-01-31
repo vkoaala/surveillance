@@ -32,14 +32,8 @@ export const deleteRepositoryAPI = async (id) =>
 export const scanUpdatesAPI = async () =>
   fetchAPI("/scan-updates", { method: "POST" });
 
-export const fetchChangelog = async (id) =>
-  fetchAPI(`/repositories/${id}/changelog`);
-
-export const fetchNotificationSettings = async () => fetchAPI("/notifications");
-
-export const updateNotificationSettings = async (settings) =>
-  fetchAPI("/notifications", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(settings),
+export const fetchChangelog = async (id) => {
+  return fetchAPI(`/repositories/${id}/changelog`, {
+    method: "GET",
   });
+};

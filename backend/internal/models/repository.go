@@ -6,8 +6,8 @@ type Repository struct {
 	URL            string `gorm:"unique;not null"`
 	CurrentVersion string
 	LatestRelease  string
-	LastUpdated    string // Date of the latest release
-	Changelog      string // Markdown-formatted release notes
-	PublishedAt    string // Release date of LatestRelease
-	LastScan       string // Last backend scan timestamp
+	LastUpdated    string
+	Changelog      string
+	PublishedAt    string
+	LastScan       string
 }

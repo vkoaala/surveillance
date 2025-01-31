@@ -1,8 +1,6 @@
 package routes
 
 import (
-	"log"
-	"net/http"
 	"surveillance/internal/models"
 	"surveillance/internal/utils"
 
@@ -15,18 +13,20 @@ func InitSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *
 	e.GET("/settings", func(c echo.Context) error {
 		var settings models.Settings
 		if err := db.First(&settings).Error; err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve settings"})
+			utils.Logger.Error("Failed to retrieve settings.")
+			return c.JSON(500, map[string]string{"error": "Failed to retrieve settings"})
 		}
 
 		decryptedAPIKey := ""
 		if settings.GitHubAPIKey != "" {
-			decrypted, err := utils.DecryptAES(settings.GitHubAPIKey, settings.EncryptionKey)
-			if err == nil {
-				decryptedAPIKey = decrypted
+			var err error
+			decryptedAPIKey, err = utils.DecryptAES(settings.GitHubAPIKey, settings.EncryptionKey)
+			if err != nil {
+				utils.Logger.Warn("Decryption failed due to missing or incorrect encryption key.")
 			}
 		}
 
-		return c.JSON(http.StatusOK, map[string]string{
+		return c.JSON(200, map[string]string{
 			"githubApiKey": decryptedAPIKey,
 			"cronSchedule": settings.CronSchedule,
 			"theme":        settings.Theme,
@@ -34,58 +34,47 @@ func InitSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *
 	})
 
 	e.POST("/settings", func(c echo.Context) error {
-		var newSettings struct {
+		var input struct {
 			Theme        string `json:"theme"`
 			CronSchedule string `json:"cronSchedule"`
 			GitHubAPIKey string `json:"githubApiKey"`
-			IsReset      bool   `json:"isReset"` // To track if reset button was pressed
+			IsReset      bool   `json:"isReset"`
 		}
 
-		if err := c.Bind(&newSettings); err != nil {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
+		if err := c.Bind(&input); err != nil {
+			return c.JSON(400, map[string]string{"error": "Invalid request"})
 		}
 
 		var settings models.Settings
 		if err := db.First(&settings).Error; err != nil {
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "No settings found"})
+			return c.JSON(404, map[string]string{"error": "Settings not found"})
 		}
 
-		if settings.EncryptionKey == "" {
-			settings.EncryptionKey = utils.GenerateEncryptionKey()
-			db.Save(&settings)
-		}
-
-		// Handle API key logic
-		if newSettings.IsReset {
-			settings.GitHubAPIKey = "" // Clear the saved key
-			log.Println("⚠️  GitHub API key cleared via reset button.")
-		} else if newSettings.GitHubAPIKey != "" && newSettings.GitHubAPIKey != "●●●●●●●●" {
-			// If a new API key is provided, validate and save it
-			if err := utils.ValidateGitHubAPIKey(newSettings.GitHubAPIKey); err != nil {
-				return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid GitHub API key"})
+		// Handle API key reset or encryption
+		if input.IsReset {
+			settings.GitHubAPIKey = ""
+			utils.Logger.Warn("GitHub API key has been reset.")
+		} else if input.GitHubAPIKey != "" && input.GitHubAPIKey != "●●●●●●●●" {
+			if err := utils.ValidateGitHubAPIKey(input.GitHubAPIKey); err != nil {
+				return c.JSON(400, map[string]string{"error": "Invalid GitHub API key"})
 			}
-
-			// Encrypt and save the validated key
-			encryptedAPIKey, err := utils.EncryptAES(newSettings.GitHubAPIKey, settings.EncryptionKey)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to encrypt API key"})
-			}
-			settings.GitHubAPIKey = encryptedAPIKey
-			log.Println("✅ GitHub API key validated and saved.")
+			encryptedKey, _ := utils.EncryptAES(input.GitHubAPIKey, settings.EncryptionKey)
+			settings.GitHubAPIKey = encryptedKey
+			utils.Logger.Info("Valid GitHub API key saved successfully.")
 		}
 
-		// Update cron and theme if provided
-		if newSettings.CronSchedule != "" {
-			settings.CronSchedule = newSettings.CronSchedule
-		}
-		if newSettings.Theme != "" {
-			settings.Theme = newSettings.Theme
-		}
+		// Update other settings
+		settings.CronSchedule = ifNotEmpty(input.CronSchedule, settings.CronSchedule)
+		settings.Theme = ifNotEmpty(input.Theme, settings.Theme)
+		db.Save(&settings)
 
-		if err := db.Save(&settings).Error; err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to save settings"})
-		}
-
-		return c.JSON(http.StatusOK, map[string]string{"message": "Settings updated successfully"})
+		return c.JSON(200, map[string]string{"message": "Settings updated successfully"})
 	})
+}
+
+func ifNotEmpty(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
 }

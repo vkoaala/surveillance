@@ -10,7 +10,7 @@ const isValidCron = (value) => {
   try {
     cronParser.parseExpression(value.trim());
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 };
@@ -70,33 +70,37 @@ const Settings = ({ refreshBannerState }) => {
     setSaving(true);
 
     try {
-      const apiKeyToSave =
-        isLocked && githubApiKey === "●●●●●●●●" ? "" : githubApiKey.trim();
+      let apiKeyToSave = "";
+
+      if (isLocked) {
+        apiKeyToSave = "LOCKED"; // No change, keep existing API key
+      } else if (githubApiKey.trim() === "") {
+        apiKeyToSave = ""; // If unlocked and empty, save an empty API key
+      } else if (githubApiKey !== "●●●●●●●●") {
+        apiKeyToSave = githubApiKey.trim(); // If unlocked and valid, save entered key
+      }
 
       await updateSettings({
         cronSchedule,
-        githubApiKey: apiKeyToSave,
+        githubApiKey: apiKeyToSave === "LOCKED" ? "" : apiKeyToSave,
         theme: tempTheme,
       });
 
-      if (apiKeyToSave === "") {
-        setIsLocked(false);
+      // Determine input state after save
+      if (apiKeyToSave === "" || apiKeyToSave === "LOCKED") {
+        setGithubApiKey(apiKeyToSave === "" ? "" : "●●●●●●●●"); // Show empty or lock icon
+        setIsLocked(apiKeyToSave !== ""); // Lock only if a key was saved
       } else {
-        setGithubApiKey("●●●●●●●●");
+        setGithubApiKey("●●●●●●●●"); // A valid key was saved, lock it
         setIsLocked(true);
       }
 
       updateTheme(tempTheme);
       showToast("success", "Settings saved successfully.");
       setErrors({});
-
-      // Refresh banner visibility based on saved key
       await refreshBannerState();
-    } catch (err) {
+    } catch {
       showToast("error", "Failed to save settings.");
-      setErrors({
-        githubApiKey: "Invalid GitHub API key. Please check and try again.",
-      });
     } finally {
       setSaving(false);
     }
@@ -114,8 +118,6 @@ const Settings = ({ refreshBannerState }) => {
       setGithubApiKey("");
       setIsLocked(false);
       showToast("success", "API key reset successfully.");
-
-      // Refresh banner visibility after reset
       await refreshBannerState();
     } catch {
       showToast("error", "Failed to reset API key.");
@@ -136,12 +138,14 @@ const Settings = ({ refreshBannerState }) => {
         <p className="text-gray-400 mt-2">Manage your configurations.</p>
       </div>
 
-      <div className="bg-[var(--color-card)] p-8 shadow-lg rounded-2xl">
+      {/* Add rounded corners and box shadow */}
+      <div className="bg-[var(--color-card)] p-8 shadow-md rounded-xl border border-[var(--color-border)]">
         <h2 className="text-2xl font-bold mb-6 text-[var(--color-primary)]">
           General
         </h2>
 
         <div className="space-y-6">
+          {/* Form inputs */}
           <div className="relative">
             <label className="block text-sm font-medium mb-2">Theme</label>
             <div className="relative">
@@ -168,11 +172,10 @@ const Settings = ({ refreshBannerState }) => {
                 type="text"
                 value={cronSchedule}
                 onChange={(e) => setCronSchedule(e.target.value)}
-                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${
-                  errors.cronSchedule
+                className={`w-full h-12 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${errors.cronSchedule
                     ? "border-red-500"
                     : "border-[var(--color-border)]"
-                }`}
+                  }`}
               />
             </div>
             {errors.cronSchedule && (
@@ -184,34 +187,29 @@ const Settings = ({ refreshBannerState }) => {
             <label className="block text-sm font-medium mb-2">
               GitHub API Key
             </label>
-            <div className="relative flex items-center">
+            <div className="relative">
               {isLocked ? (
-                <FaLock className="absolute left-4 text-gray-400 text-lg" />
+                <FaLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
               ) : (
-                <FaGithub className="absolute left-4 text-gray-400 text-lg" />
+                <FaGithub className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
               )}
               <input
-                type={isLocked ? "password" : "text"}
-                value={isLocked ? "●●●●●●●●" : githubApiKey}
+                type="password"
+                value={githubApiKey}
                 onChange={(e) => setGithubApiKey(e.target.value)}
                 disabled={isLocked}
-                className={`w-full h-12 pl-12 pr-4 rounded-lg ${
-                  isLocked
+                className={`w-full h-12 pl-12 pr-4 rounded-lg ${isLocked
                     ? "bg-[var(--color-card)] text-gray-400"
                     : "bg-[var(--color-bg)] text-[var(--color-text)]"
-                } outline-none border border-[var(--color-border)]`}
+                  } outline-none border border-[var(--color-border)]`}
               />
             </div>
-            {errors.githubApiKey && (
-              <p className="text-red-500 text-sm mt-1">{errors.githubApiKey}</p>
-            )}
           </div>
         </div>
 
         <div className="mt-8 flex justify-end gap-4">
           {isLocked && (
             <button
-              type="button"
               onClick={handleResetApiKey}
               className="px-6 py-2 text-blue-200 bg-[var(--color-border)] hover:bg-blue-700 rounded-lg shadow-md"
             >

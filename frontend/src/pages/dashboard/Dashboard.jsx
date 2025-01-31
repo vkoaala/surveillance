@@ -7,7 +7,8 @@ import {
   addRepositoryAPI,
   deleteRepositoryAPI,
   scanUpdatesAPI,
-} from "@/config/api";
+  fetchChangelog,
+} from "@/config/api"; // Corrected fetchChangelog import
 import ChangelogBox from "@/components/ui/ChangelogBox";
 
 const Dashboard = () => {
@@ -31,7 +32,7 @@ const Dashboard = () => {
   const filteredRepos = useMemo(
     () =>
       repos.filter((repo) =>
-        repo.Name.toLowerCase().includes(searchTerm.toLowerCase()),
+        repo.Name?.toLowerCase().includes(searchTerm.toLowerCase()),
       ),
     [repos, searchTerm],
   );
@@ -66,15 +67,20 @@ const Dashboard = () => {
     }
   };
 
-  const showChangelog = (id) => {
+  const showChangelog = async (id) => {
     const found = repos.find((r) => r.ID === id);
     if (!found) return;
-    setChangelog({
-      name: found.Name,
-      version: found.CurrentVersion,
-      latestRelease: found.LatestRelease,
-      content: found.Changelog || "No changelog found.",
-    });
+    try {
+      const changelogData = await fetchChangelog(id); // Correct changelog API call
+      setChangelog({
+        name: found.Name,
+        version: found.CurrentVersion,
+        latestRelease: found.LatestRelease,
+        content: changelogData.content || "No changelog available.",
+      });
+    } catch {
+      console.error("Error fetching changelog");
+    }
   };
 
   return (
@@ -132,7 +138,7 @@ const Dashboard = () => {
         />
       )}
       <RepoList
-        repos={filteredRepos}
+        repos={repos}
         deleteRepo={deleteRepo}
         showChangelog={showChangelog}
       />

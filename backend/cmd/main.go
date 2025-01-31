@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"surveillance/internal/models"
 	"surveillance/internal/routes"
 	"surveillance/internal/services"
@@ -13,14 +12,17 @@ import (
 	"github.com/robfig/cron/v3"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var currentCronEntryID cron.EntryID
 
 func initDB() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("./db/sqlite.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open("./db/sqlite.db"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Error),
+	})
 	if err != nil {
-		log.Fatalf("❌ Failed to connect DB: %v", err)
+		utils.Logger.Fatal("Failed to connect to the database: ", err)
 	}
 	db.AutoMigrate(&models.Settings{}, &models.Repository{}, &models.NotificationSettings{})
 	ensureDefaultSettings(db)
@@ -37,31 +39,37 @@ func ensureDefaultSettings(db *gorm.DB) {
 			GitHubAPIKey:  "",
 			EncryptionKey: utils.GenerateEncryptionKey(),
 		})
-		log.Println("[Settings] Default settings created.")
+	}
+}
+
+func checkGitHubAPIKey(db *gorm.DB) {
+	token := utils.GetGitHubToken(db)
+	if token == "" {
+		utils.Logger.Info("GitHub API key is not set.")
 	}
 }
 
 func main() {
-	e := echo.New()
+	utils.InitLogger()
 	db := initDB()
+
+	checkGitHubAPIKey(db)
+
+	e := echo.New()
 	c := cron.New()
 
-	// Load settings for initial schedule setup
 	var settings models.Settings
 	if err := db.First(&settings).Error; err == nil {
 		entryID, err := c.AddFunc(settings.CronSchedule, func() {
-			log.Println("🔄 Running scheduled repository scan...")
 			githubToken := utils.GetGitHubToken(db)
 			nextScanTime := time.Now().Add(6 * time.Hour).Format("Jan 02 3:04 PM")
-			services.MonitorRepositories(db, githubToken, nextScanTime, false) // Scheduled scan
+			services.MonitorRepositories(db, githubToken, nextScanTime, false)
 		})
-
-		if err == nil {
-			currentCronEntryID = entryID
-			log.Printf("✅ Scheduled repo scan with cron: %s", settings.CronSchedule)
+		if err != nil {
+			utils.Logger.Fatal("Failed to add cron job: ", err)
 		}
+		currentCronEntryID = entryID
 	}
-
 	c.Start()
 
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
@@ -69,7 +77,6 @@ func main() {
 		AllowMethods: []string{echo.GET, echo.POST, echo.DELETE},
 	}))
 
-	// Inject DB and cron into the request context
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ctx.Set("db", db)
@@ -82,7 +89,7 @@ func main() {
 	routes.InitSettingsRoutes(e, db, c, &currentCronEntryID)
 	routes.InitNotificationRoutes(e, db)
 	routes.InitValidationRoutes(e)
+	routes.InitScanRoutes(e, db)
 
-	log.Println("✅ Server starting at http://localhost:8080")
 	e.Logger.Fatal(e.Start(":8080"))
 }

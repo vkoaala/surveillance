@@ -2,9 +2,9 @@ package services
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"surveillance/internal/models"
+	"surveillance/internal/utils"
 	"time"
 
 	"gorm.io/gorm"
@@ -17,80 +17,76 @@ type GitHubRelease struct {
 }
 
 func GetLatestReleaseInfo(repoName, githubToken string) (string, string, string) {
-	api := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", repoName)
-	req, _ := http.NewRequest("GET", api, nil)
+	req, _ := http.NewRequest("GET", "https://api.github.com/repos/"+repoName+"/releases/latest", nil)
 	if githubToken != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", githubToken))
+		req.Header.Set("Authorization", "Bearer "+githubToken)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
-	if err != nil || resp.StatusCode != http.StatusOK {
-		fmt.Printf("⚠️  Failed to fetch release for %s\n", repoName)
+	if err != nil {
+		utils.Logger.Warnf("Failed to fetch release info for %s: %v", repoName, err)
 		return "", "", ""
 	}
 	defer resp.Body.Close()
 
-	var release GitHubRelease
-	json.NewDecoder(resp.Body).Decode(&release)
+	if resp.StatusCode != http.StatusOK {
+		utils.Logger.Warnf("GitHub API request for %s failed with status: %s", repoName, resp.Status)
+		return "", "", ""
+	}
 
-	parsedDate, _ := time.Parse(time.RFC3339, release.PublishedAt)
-	return release.TagName, parsedDate.Format("Jan 02 2006"), release.Body
+	var release GitHubRelease
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		utils.Logger.Warnf("Failed to decode response for %s: %v", repoName, err)
+		return "", "", ""
+	}
+
+	date, _ := time.Parse(time.RFC3339, release.PublishedAt)
+	utils.Logger.Infof("Latest release for %s: %s (published on %s)", repoName, release.TagName, release.PublishedAt)
+	return release.TagName, date.Format("Jan 02 2006"), release.Body
 }
 
-func MonitorRepositories(db *gorm.DB, githubToken, nextScanTime string, isManualScan bool) {
+func MonitorRepositories(db *gorm.DB, githubToken, nextScanTime string, isManual bool) error {
+	utils.Logger.Info("Starting repository scan...")
+
 	var repos []models.Repository
 	if err := db.Find(&repos).Error; err != nil {
-		fmt.Println("⚠️  Failed to fetch repositories")
-		return
+		utils.Logger.Error("Failed to retrieve repositories: ", err)
+		return err
 	}
-
 	if len(repos) == 0 {
-		fmt.Println("⚠️  No repositories to scan.")
-		return
+		utils.Logger.Warn("No repositories found to scan.")
+		return nil
 	}
 
-	scanType := "manual"
-	if !isManualScan {
-		scanType = "scheduled"
-	}
-
-	scanIcon := "🚀"
-	if githubToken != "" {
-		scanIcon = "🔒"
-	}
-	fmt.Printf("%s Starting %s scan for %d repositories\n", scanIcon, scanType, len(repos))
-	fmt.Println("===================================")
-
-	updatedRepos := []string{}
-
+	updates := []models.Repository{}
 	for _, repo := range repos {
 		latestVersion, lastUpdated, changelog := GetLatestReleaseInfo(repo.Name, githubToken)
-		if latestVersion == "" {
-			continue
-		}
-		if repo.CurrentVersion != latestVersion {
-			db.Model(&repo).Updates(models.Repository{
-				CurrentVersion: latestVersion,
-				LatestRelease:  latestVersion,
-				LastUpdated:    lastUpdated,
-				Changelog:      changelog,
-			})
-			updatedRepos = append(updatedRepos, fmt.Sprintf("%s: Updated to %s", repo.Name, latestVersion))
+		if latestVersion != "" && repo.CurrentVersion != latestVersion {
+			utils.Logger.Infof("Update found for %s: %s -> %s", repo.Name, repo.CurrentVersion, latestVersion)
+			repo.CurrentVersion = latestVersion
+			repo.LatestRelease = latestVersion
+			repo.LastUpdated = lastUpdated
+			repo.Changelog = changelog
+			updates = append(updates, repo)
+		} else {
+			utils.Logger.Infof("%s is up to date.", repo.Name)
 		}
 	}
 
-	if len(updatedRepos) > 0 {
-		for _, msg := range updatedRepos {
-			fmt.Println(msg)
+	if len(updates) > 0 {
+		if err := db.Save(&updates).Error; err != nil {
+			utils.Logger.Error("Failed to update repositories: ", err)
+			return err
 		}
+		utils.Logger.Infof("%d repositories updated successfully.", len(updates))
 	} else {
-		fmt.Println("✅ All repositories are up to date")
+		utils.Logger.Info("All repositories are up to date.")
 	}
 
-	fmt.Println("===================================")
-	fmt.Println("✅ Scan completed")
-	if !isManualScan {
-		fmt.Printf("\nNext scan: %s\n", nextScanTime)
+	if isManual {
+		utils.Logger.Info("Manual repository scan finished.")
+	} else {
+		utils.Logger.Info("Scheduled repository scan finished.")
 	}
-	fmt.Println("-----------------------------------")
+	return nil
 }

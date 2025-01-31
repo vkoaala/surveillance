@@ -6,77 +6,67 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"log"
 )
 
 func GenerateEncryptionKey() string {
+	Logger.Info("Generating encryption key.")
 	key := make([]byte, 32)
-	_, err := rand.Read(key)
-	if err != nil {
-		log.Println("❌ [Encryption] Failed to generate AES key:", err)
-		return ""
-	}
+	rand.Read(key)
 	return base64.StdEncoding.EncodeToString(key)
 }
 
 func NormalizeAESKey(encodedKey string) ([]byte, error) {
-	rawKey, err := base64.StdEncoding.DecodeString(encodedKey)
-	if err != nil || len(rawKey) != 32 {
-		log.Println("❌ [Encryption] Invalid AES key. Expected 32 bytes, got", len(rawKey))
+	key, err := base64.StdEncoding.DecodeString(encodedKey)
+	if err != nil || len(key) != 32 {
+		Logger.Error("Invalid AES encryption key provided.")
 		return nil, errors.New("invalid AES encryption key")
 	}
-	return rawKey, nil
+	return key, nil
 }
 
 func EncryptAES(plainText, encodedKey string) (string, error) {
 	key, err := NormalizeAESKey(encodedKey)
 	if err != nil {
-		log.Println("❌ [Encryption] Encryption failed:", err)
 		return "", err
 	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		log.Println("❌ [Encryption] AES cipher creation failed:", err)
+		Logger.Error("Failed to create AES cipher block.")
 		return "", err
 	}
 
 	cipherText := make([]byte, aes.BlockSize+len(plainText))
 	iv := cipherText[:aes.BlockSize]
-	_, err = rand.Read(iv)
-	if err != nil {
-		log.Println("❌ [Encryption] IV generation failed:", err)
-		return "", err
-	}
+	rand.Read(iv)
 
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(cipherText[aes.BlockSize:], []byte(plainText))
 
-	encryptedText := base64.StdEncoding.EncodeToString(cipherText)
-	return encryptedText, nil
+	Logger.Info("Text encrypted successfully.")
+	return base64.StdEncoding.EncodeToString(cipherText), nil
 }
 
 func DecryptAES(cipherText, encodedKey string) (string, error) {
 	if cipherText == "" || encodedKey == "" {
-		log.Println("❌ [Decryption] Missing encrypted text or key")
+		Logger.Warn("Missing encrypted text or key for decryption.")
 		return "", errors.New("missing encrypted text or key")
 	}
 
 	key, err := NormalizeAESKey(encodedKey)
 	if err != nil {
-		log.Println("❌ [Decryption] Decryption failed:", err)
 		return "", err
 	}
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		log.Println("❌ [Decryption] AES cipher creation failed:", err)
+		Logger.Error("Failed to create AES cipher block for decryption.")
 		return "", err
 	}
 
 	data, err := base64.StdEncoding.DecodeString(cipherText)
 	if err != nil || len(data) < aes.BlockSize {
-		log.Println("❌ [Decryption] Invalid encrypted data")
+		Logger.Error("Invalid encrypted data provided.")
 		return "", errors.New("invalid encrypted data")
 	}
 
