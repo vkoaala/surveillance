@@ -52,12 +52,12 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 		return err
 	}
 
-	emoji := "🟢"
-	if isManual {
-		emoji = "🔵"
+	emoji := "🔵"
+	if !isManual {
+		emoji = "🟢"
 	}
 
-	utils.Logger.Infof("%s %s Automatic scan started for %d repositories", emoji, scanType, len(repos))
+	utils.Logger.Infof("%s %s scan started for %d repositories", emoji, scanType, len(repos))
 
 	updates := []string{}
 	for _, repo := range repos {
@@ -83,7 +83,8 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 	}
 
 	UpdateLastScanTime(db)
-	utils.Logger.Infof("%s %s Scan completed successfully.\n\n", emoji, scanType)
+
+	utils.Logger.Infof("%s %s scan completed successfully", emoji, scanType)
 	return nil
 }
 

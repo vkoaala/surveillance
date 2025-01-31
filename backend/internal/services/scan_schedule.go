@@ -12,7 +12,6 @@ func CalculateNextScan(cronExpression string) (string, error) {
 	if err != nil {
 		return "Invalid cron expression", err
 	}
-
 	nextScan := schedule.Next(time.Now())
 	return formatNextScan(nextScan), nil
 }
@@ -46,12 +45,10 @@ func UpdateLastScanTime(db *gorm.DB) {
 func formatNextScan(nextScan time.Time) string {
 	now := time.Now()
 	if nextScan.Year() == now.Year() && nextScan.YearDay() == now.YearDay() {
-		return "Today - " + nextScan.Format("3:04 PM")
+		return "Today at " + nextScan.Format("3:04 PM")
 	}
-
 	if nextScan.Year() == now.Year() && nextScan.YearDay() == now.YearDay()+1 {
-		return "Tomorrow - " + nextScan.Format("3:04 PM")
+		return "Tomorrow at " + nextScan.Format("3:04 PM")
 	}
-
-	return nextScan.Format("Jan 02 2006 3:04 PM")
+	return nextScan.Format("Jan 02 at 3:04 PM")
 }

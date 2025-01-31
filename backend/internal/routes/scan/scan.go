@@ -1,4 +1,4 @@
-package routes
+package scan
 
 import (
 	"net/http"
@@ -9,11 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-func InitScanRoutes(e *echo.Echo, db *gorm.DB) {
+func RegisterScanRoutes(e *echo.Echo, db *gorm.DB) {
 	e.POST("/scan-updates", func(c echo.Context) error {
 		githubToken := utils.GetGitHubToken(db)
-		err := services.MonitorRepositories(db, githubToken, "Manual scan", true)
-		if err != nil {
+		if err := services.MonitorRepositories(db, githubToken, "Manual", true); err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Scan failed"})
 		}
 		services.UpdateLastScanTime(db)

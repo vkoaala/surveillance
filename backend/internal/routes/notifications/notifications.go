@@ -1,4 +1,4 @@
-package routes
+package notifications
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func InitNotificationRoutes(e *echo.Echo, db *gorm.DB) {
+func RegisterNotificationRoutes(e *echo.Echo, db *gorm.DB) {
 	e.GET("/notifications", func(c echo.Context) error {
 		utils.Logger.Debug("Fetching notification settings.")
 		var settings models.NotificationSettings

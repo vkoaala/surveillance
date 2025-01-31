@@ -1,4 +1,4 @@
-package routes
+package settings
 
 import (
 	"net/http"
@@ -11,28 +11,21 @@ import (
 	"gorm.io/gorm"
 )
 
-func isValidCronExpression(cronExpr string) bool {
-	_, err := cron.ParseStandard(cronExpr)
-	return err == nil
-}
-
-func InitSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *cron.EntryID) {
+func RegisterSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *cron.EntryID) {
 	e.GET("/settings", func(c echo.Context) error {
 		var settings models.Settings
 		if err := db.First(&settings).Error; err != nil {
-			utils.Logger.Error("Failed to retrieve settings.")
+			utils.Logger.Error("Failed to retrieve settings: ", err)
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve settings"})
 		}
-
 		decryptedAPIKey := ""
 		if settings.GitHubAPIKey != "" {
 			var err error
 			decryptedAPIKey, err = utils.DecryptAES(settings.GitHubAPIKey, settings.EncryptionKey)
 			if err != nil {
-				utils.Logger.Warn("Decryption failed due to missing or incorrect encryption key.")
+				utils.Logger.Warn("Decryption failed: ", err)
 			}
 		}
-
 		return c.JSON(http.StatusOK, map[string]string{
 			"githubApiKey": decryptedAPIKey,
 			"cronSchedule": settings.CronSchedule,
@@ -47,27 +40,25 @@ func InitSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *
 			GitHubAPIKey string `json:"githubApiKey"`
 			IsReset      bool   `json:"isReset"`
 		}
-
 		if err := c.Bind(&input); err != nil {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
 		}
-
 		if !isValidCronExpression(input.CronSchedule) {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid cron expression"})
 		}
-
 		var settings models.Settings
 		if err := db.First(&settings).Error; err != nil {
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve settings"})
 		}
-
 		settingsUpdated := false
 
 		if settings.CronSchedule != input.CronSchedule {
 			scheduler.Remove(*jobID)
 			newJobID, err := scheduler.AddFunc(input.CronSchedule, func() {
 				githubToken := utils.GetGitHubToken(db)
-				services.MonitorRepositories(db, githubToken, "", false)
+				if err := services.MonitorRepositories(db, githubToken, "", false); err != nil {
+					utils.Logger.Errorf("Repository scan failed: %v", err)
+				}
 			})
 			if err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to schedule the new cron job"})
@@ -86,7 +77,10 @@ func InitSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *
 			if err := utils.ValidateGitHubAPIKey(input.GitHubAPIKey); err != nil {
 				return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid GitHub API key"})
 			}
-			encryptedKey, _ := utils.EncryptAES(input.GitHubAPIKey, settings.EncryptionKey)
+			encryptedKey, err := utils.EncryptAES(input.GitHubAPIKey, settings.EncryptionKey)
+			if err != nil {
+				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Encryption failed"})
+			}
 			settings.GitHubAPIKey = encryptedKey
 			settingsUpdated = true
 			utils.Logger.Info("✅ New GitHub API key validated and saved.")
@@ -100,5 +94,9 @@ func InitSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *
 
 		return c.JSON(http.StatusOK, map[string]string{})
 	})
+}
 
+func isValidCronExpression(cronExpr string) bool {
+	_, err := cron.ParseStandard(cronExpr)
+	return err == nil
 }

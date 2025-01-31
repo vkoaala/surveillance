@@ -19,7 +19,7 @@ func GetGitHubToken(db *gorm.DB) string {
 		if err == nil {
 			return token
 		}
-		Logger.Warn("Failed to decrypt GitHub token.")
+		Logger.Warn("Failed to decrypt GitHub token: ", err)
 	}
 	return ""
 }

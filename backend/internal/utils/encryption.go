@@ -56,7 +56,6 @@ func EncryptAES(plainText, encodedKey string) (string, error) {
 	}
 
 	cipherText := aesGCM.Seal(nil, nonce, []byte(plainText), nil)
-
 	finalOutput := append(nonce, cipherText...)
 	return base64.StdEncoding.EncodeToString(finalOutput), nil
 }
@@ -96,7 +95,6 @@ func DecryptAES(cipherText, encodedKey string) (string, error) {
 	}
 
 	nonce, cipherData := decodedCipherText[:12], decodedCipherText[12:]
-
 	plainText, err := aesGCM.Open(nil, nonce, cipherData, nil)
 	if err != nil {
 		Logger.Error("Failed to decrypt or verify the ciphertext.")
