@@ -9,7 +9,6 @@ import (
 
 func InitValidationRoutes(e *echo.Echo) {
 	e.POST("/api/validate-key", func(c echo.Context) error {
-		utils.Logger.Info("Validating GitHub API key.")
 		var input struct {
 			ApiKey string `json:"apiKey"`
 		}
@@ -20,11 +19,10 @@ func InitValidationRoutes(e *echo.Echo) {
 		}
 
 		if err := utils.ValidateGitHubAPIKey(input.ApiKey); err != nil {
-			utils.Logger.Error("GitHub API key validation failed: ", err)
+			utils.Logger.Error(err)
 			return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})
 		}
 
-		utils.Logger.Info("GitHub API key validation succeeded.")
 		return c.JSON(http.StatusOK, map[string]string{"message": "GitHub API key is valid"})
 	})
 }

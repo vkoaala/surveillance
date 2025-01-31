@@ -43,7 +43,6 @@ func EncryptAES(plainText, encodedKey string) (string, error) {
 	stream := cipher.NewCFBEncrypter(block, iv)
 	stream.XORKeyStream(cipherText[aes.BlockSize:], []byte(plainText))
 
-	Logger.Info("Text encrypted successfully.")
 	return base64.StdEncoding.EncodeToString(cipherText), nil
 }
 

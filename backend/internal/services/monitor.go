@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"surveillance/internal/models"
 	"surveillance/internal/utils"
@@ -46,47 +47,54 @@ func GetLatestReleaseInfo(repoName, githubToken string) (string, string, string)
 }
 
 func MonitorRepositories(db *gorm.DB, githubToken, nextScanTime string, isManual bool) error {
-	utils.Logger.Info("Starting repository scan...")
+	scanType := "Scheduled"
+	if isManual {
+		scanType = "Manual"
+	}
 
 	var repos []models.Repository
 	if err := db.Find(&repos).Error; err != nil {
-		utils.Logger.Error("Failed to retrieve repositories: ", err)
+		utils.Logger.Error("❌ Failed to retrieve repositories: ", err)
 		return err
 	}
-	if len(repos) == 0 {
-		utils.Logger.Warn("No repositories found to scan.")
-		return nil
-	}
 
-	updates := []models.Repository{}
+	utils.Logger.Infof("\n🔵 %s scan started for %d repositories.\n", scanType, len(repos))
+
+	updates := []string{}
 	for _, repo := range repos {
-		latestVersion, lastUpdated, changelog := GetLatestReleaseInfo(repo.Name, githubToken)
+		latestVersion, lastUpdated, _ := GetLatestReleaseInfo(repo.Name, githubToken)
 		if latestVersion != "" && repo.CurrentVersion != latestVersion {
-			utils.Logger.Infof("Update found for %s: %s -> %s", repo.Name, repo.CurrentVersion, latestVersion)
+			updates = append(updates, fmt.Sprintf("- %s: %s -> %s", repo.Name, repo.CurrentVersion, latestVersion))
 			repo.CurrentVersion = latestVersion
 			repo.LatestRelease = latestVersion
 			repo.LastUpdated = lastUpdated
-			repo.Changelog = changelog
-			updates = append(updates, repo)
-		} else {
-			utils.Logger.Infof("%s is up to date.", repo.Name)
 		}
 	}
 
 	if len(updates) > 0 {
-		if err := db.Save(&updates).Error; err != nil {
-			utils.Logger.Error("Failed to update repositories: ", err)
+		if err := db.Save(&repos).Error; err != nil {
+			utils.Logger.Error("❌ Failed to update repositories: ", err)
 			return err
 		}
-		utils.Logger.Infof("%d repositories updated successfully.", len(updates))
+		utils.Logger.Infof("🔄 Updates found:\n%s\n", formatUpdates(updates))
+		utils.Logger.Infof("✅ Scan finished - %d updates applied.\n", len(updates))
 	} else {
-		utils.Logger.Info("All repositories are up to date.")
-	}
-
-	if isManual {
-		utils.Logger.Info("Manual repository scan finished.")
-	} else {
-		utils.Logger.Info("Scheduled repository scan finished.")
+		utils.Logger.Info("✅ Scan finished - All repositories are up to date.\n")
 	}
 	return nil
+}
+
+func formatUpdates(updates []string) string {
+	return fmt.Sprintf("   %s", stringJoin(updates, "\n   "))
+}
+
+func stringJoin(items []string, sep string) string {
+	result := ""
+	for i, item := range items {
+		result += item
+		if i < len(items)-1 {
+			result += sep
+		}
+	}
+	return result
 }

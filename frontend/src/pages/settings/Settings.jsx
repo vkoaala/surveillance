@@ -4,6 +4,7 @@ import Toast from "@/components/ui/Toast";
 import { FaGithub, FaLock, FaClock, FaPalette } from "react-icons/fa";
 import { fetchSettings, updateSettings } from "@/config/api";
 import cronParser from "cron-parser";
+import { fetchAPI } from "@/config/api";
 
 const isValidCron = (value) => {
   if (!value.trim()) return false;
@@ -54,6 +55,25 @@ const Settings = ({ refreshBannerState }) => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const validateGitHubKey = async () => {
+    if (githubApiKey === "●●●●●●●●" || isLocked) return true;
+
+    try {
+      const res = await fetchAPI("/api/validate-key", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: githubApiKey.trim() }),
+      });
+      if (res.message === "GitHub API key is valid") return true;
+    } catch {
+      setErrors((prev) => ({
+        ...prev,
+        githubApiKey: "Invalid GitHub API key.",
+      }));
+    }
+    return false;
+  };
+
   const validateForm = () => {
     let formErrors = {};
     if (!cronSchedule.trim()) {
@@ -67,17 +87,19 @@ const Settings = ({ refreshBannerState }) => {
 
   const handleSaveSettings = async () => {
     if (!validateForm()) return;
-    setSaving(true);
 
+    if (!(await validateGitHubKey())) return;
+
+    setSaving(true);
     try {
       let apiKeyToSave = "";
 
       if (isLocked) {
-        apiKeyToSave = "LOCKED"; // No change, keep existing API key
+        apiKeyToSave = "LOCKED";
       } else if (githubApiKey.trim() === "") {
-        apiKeyToSave = ""; // If unlocked and empty, save an empty API key
+        apiKeyToSave = "";
       } else if (githubApiKey !== "●●●●●●●●") {
-        apiKeyToSave = githubApiKey.trim(); // If unlocked and valid, save entered key
+        apiKeyToSave = githubApiKey.trim();
       }
 
       await updateSettings({
@@ -86,12 +108,11 @@ const Settings = ({ refreshBannerState }) => {
         theme: tempTheme,
       });
 
-      // Determine input state after save
       if (apiKeyToSave === "" || apiKeyToSave === "LOCKED") {
-        setGithubApiKey(apiKeyToSave === "" ? "" : "●●●●●●●●"); // Show empty or lock icon
-        setIsLocked(apiKeyToSave !== ""); // Lock only if a key was saved
+        setGithubApiKey(apiKeyToSave === "" ? "" : "●●●●●●●●");
+        setIsLocked(apiKeyToSave !== "");
       } else {
-        setGithubApiKey("●●●●●●●●"); // A valid key was saved, lock it
+        setGithubApiKey("●●●●●●●●");
         setIsLocked(true);
       }
 
@@ -138,14 +159,12 @@ const Settings = ({ refreshBannerState }) => {
         <p className="text-gray-400 mt-2">Manage your configurations.</p>
       </div>
 
-      {/* Add rounded corners and box shadow */}
       <div className="bg-[var(--color-card)] p-8 shadow-md rounded-xl border border-[var(--color-border)]">
         <h2 className="text-2xl font-bold mb-6 text-[var(--color-primary)]">
           General
         </h2>
 
         <div className="space-y-6">
-          {/* Form inputs */}
           <div className="relative">
             <label className="block text-sm font-medium mb-2">Theme</label>
             <div className="relative">
@@ -201,9 +220,15 @@ const Settings = ({ refreshBannerState }) => {
                 className={`w-full h-12 pl-12 pr-4 rounded-lg ${isLocked
                     ? "bg-[var(--color-card)] text-gray-400"
                     : "bg-[var(--color-bg)] text-[var(--color-text)]"
-                  } outline-none border border-[var(--color-border)]`}
+                  } outline-none border ${errors.githubApiKey
+                    ? "border-red-500"
+                    : "border-[var(--color-border)]"
+                  }`}
               />
             </div>
+            {errors.githubApiKey && (
+              <p className="text-red-500 text-sm mt-1">{errors.githubApiKey}</p>
+            )}
           </div>
         </div>
 

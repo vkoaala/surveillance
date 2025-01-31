@@ -8,8 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-var isAPILogged = false
-
 func GetGitHubToken(db *gorm.DB) string {
 	var settings models.Settings
 	if err := db.First(&settings).Error; err == nil {
@@ -28,7 +26,6 @@ func GetGitHubToken(db *gorm.DB) string {
 
 func ValidateGitHubAPIKey(apiKey string) error {
 	if apiKey == "" {
-		Logger.Info("No GitHub API key set. Proceeding with unauthenticated GitHub API requests.")
 		return nil
 	}
 
@@ -38,16 +35,13 @@ func ValidateGitHubAPIKey(apiKey string) error {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		Logger.Error("GitHub API request failed: ", err)
 		return fmt.Errorf("GitHub API request failed")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		Logger.Error("GitHub API key validation failed with status: ", http.StatusText(resp.StatusCode))
 		return fmt.Errorf("GitHub API key validation failed")
 	}
 
-	Logger.Info("GitHub API key successfully validated.")
 	return nil
 }

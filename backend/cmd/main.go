@@ -49,44 +49,54 @@ func checkGitHubAPIKey(db *gorm.DB) {
 	}
 }
 
+func startCronJob(db *gorm.DB, scheduler *cron.Cron) {
+	var settings models.Settings
+	if err := db.First(&settings).Error; err != nil {
+		utils.Logger.Fatalf("Failed to fetch initial settings: %v", err)
+	}
+
+	entryID, err := scheduler.AddFunc(settings.CronSchedule, func() {
+		utils.Logger.Info("Cron job triggered: Starting repository scan...")
+		githubToken := utils.GetGitHubToken(db)
+		nextScanTime := time.Now().Add(6 * time.Hour).Format("Jan 02 3:04 PM")
+		err := services.MonitorRepositories(db, githubToken, nextScanTime, false)
+		if err != nil {
+			utils.Logger.Errorf("Repository scan failed: %v", err)
+		} else {
+			utils.Logger.Info("Repository scan completed successfully.")
+		}
+	})
+	if err != nil {
+		utils.Logger.Fatalf("Failed to schedule the cron job: %v", err)
+	}
+	currentCronEntryID = entryID
+	utils.Logger.Infof("Cron job scheduled with ID: %d and schedule: %s", entryID, settings.CronSchedule)
+}
+
 func main() {
 	utils.InitLogger()
 	db := initDB()
-
 	checkGitHubAPIKey(db)
+	scheduler := cron.New()
+	startCronJob(db, scheduler)
+	scheduler.Start()
 
 	e := echo.New()
-	c := cron.New()
-
-	var settings models.Settings
-	if err := db.First(&settings).Error; err == nil {
-		entryID, err := c.AddFunc(settings.CronSchedule, func() {
-			githubToken := utils.GetGitHubToken(db)
-			nextScanTime := time.Now().Add(6 * time.Hour).Format("Jan 02 3:04 PM")
-			services.MonitorRepositories(db, githubToken, nextScanTime, false)
-		})
-		if err != nil {
-			utils.Logger.Fatal("Failed to add cron job: ", err)
-		}
-		currentCronEntryID = entryID
-	}
-	c.Start()
-
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
 		AllowOrigins: []string{"http://localhost:5173"},
-		AllowMethods: []string{echo.GET, echo.POST, echo.DELETE},
+		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
 	}))
 
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(ctx echo.Context) error {
 			ctx.Set("db", db)
-			ctx.Set("cron", c)
+			ctx.Set("cron", scheduler)
 			return next(ctx)
 		}
 	})
 
 	routes.InitRepositoryRoutes(e, db)
-	routes.InitSettingsRoutes(e, db, c, &currentCronEntryID)
+	routes.InitSettingsRoutes(e, db, scheduler, &currentCronEntryID)
 	routes.InitNotificationRoutes(e, db)
 	routes.InitValidationRoutes(e)
 	routes.InitScanRoutes(e, db)
