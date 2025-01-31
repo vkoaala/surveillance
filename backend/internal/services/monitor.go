@@ -57,16 +57,18 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 		emoji = "🔵"
 	}
 
-	utils.Logger.Infof("%s %s Automatic scan started for %d repositories\n", emoji, scanType, len(repos))
+	utils.Logger.Infof("%s %s Automatic scan started for %d repositories", emoji, scanType, len(repos))
 
 	updates := []string{}
 	for _, repo := range repos {
-		latestVersion, lastUpdated, _ := GetLatestReleaseInfo(repo.Name, githubToken)
+		latestVersion, lastUpdated, changelog := GetLatestReleaseInfo(repo.Name, githubToken)
+
 		if latestVersion != "" && repo.CurrentVersion != latestVersion {
 			updates = append(updates, fmt.Sprintf("%s: %s -> %s", repo.Name, repo.CurrentVersion, latestVersion))
 			repo.CurrentVersion = latestVersion
 			repo.LatestRelease = latestVersion
 			repo.LastUpdated = lastUpdated
+			repo.Changelog = changelog
 		}
 	}
 
@@ -75,12 +77,13 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 			utils.Logger.Error("❌ Failed to update repositories: ", err)
 			return err
 		}
-		utils.Logger.Infof("%s\n", formatUpdates(updates))
+		utils.Logger.Infof("🔄 Updated repositories:\n%s", formatUpdates(updates))
 	} else {
-		utils.Logger.Info("All repositories are up to date")
+		utils.Logger.Info("✅ All repositories are up to date.")
 	}
 
-	utils.Logger.Infof("%s %s Automatic scan finished\n\n", emoji, scanType)
+	UpdateLastScanTime(db)
+	utils.Logger.Infof("%s %s Scan completed successfully.\n\n", emoji, scanType)
 	return nil
 }
 

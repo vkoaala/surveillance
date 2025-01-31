@@ -8,7 +8,8 @@ import {
   deleteRepositoryAPI,
   scanUpdatesAPI,
   fetchChangelog,
-} from "@/config/api"; // Corrected fetchChangelog import
+  fetchScanStatus,
+} from "@/config/api";
 import ChangelogBox from "@/components/ui/ChangelogBox";
 
 const Dashboard = () => {
@@ -16,17 +17,21 @@ const Dashboard = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isScanning, setIsScanning] = useState(false);
-  const [lastScan, setLastScan] = useState("");
+  const [lastScan, setLastScan] = useState("Fetching...");
+  const [nextScan, setNextScan] = useState("Calculating...");
   const [changelog, setChangelog] = useState(null);
 
   useEffect(() => {
     fetchRepositories()
-      .then((data) => {
-        setRepos(data);
-        if (data.length > 0)
-          setLastScan(data[0].LastScan || "No scan performed yet");
-      })
+      .then((data) => setRepos(data))
       .catch(() => console.error("Error fetching repositories"));
+
+    fetchScanStatus()
+      .then((data) => {
+        setLastScan(data.lastScan);
+        setNextScan(data.nextScan);
+      })
+      .catch(() => console.error("Failed to fetch scan times."));
   }, []);
 
   const filteredRepos = useMemo(
@@ -62,6 +67,14 @@ const Dashboard = () => {
       fetchRepositories()
         .then(setRepos)
         .catch(() => console.error("Error fetching repositories after scan"));
+
+      // ✅ Fetch updated scan times
+      fetchScanStatus()
+        .then((data) => {
+          setLastScan(data.lastScan);
+          setNextScan(data.nextScan);
+        })
+        .catch(() => console.error("Failed to fetch updated scan times."));
     } finally {
       setIsScanning(false);
     }
@@ -71,7 +84,7 @@ const Dashboard = () => {
     const found = repos.find((r) => r.ID === id);
     if (!found) return;
     try {
-      const changelogData = await fetchChangelog(id); // Correct changelog API call
+      const changelogData = await fetchChangelog(id);
       setChangelog({
         name: found.Name,
         version: found.CurrentVersion,
@@ -116,8 +129,19 @@ const Dashboard = () => {
         </button>
       </div>
 
-      <div className="text-center mb-4 text-sm text-gray-400">
-        Last Scan: {lastScan}
+      <div className="flex flex-col items-center justify-center text-gray-400 text-sm space-y-1 mb-4">
+        <p>
+          <span className="font-medium text-[var(--color-primary)]">
+            Last Scan:
+          </span>{" "}
+          {lastScan}
+        </p>
+        <p>
+          <span className="font-medium text-[var(--color-primary)]">
+            Next Scan:
+          </span>{" "}
+          {nextScan}
+        </p>
       </div>
 
       <div className="relative mb-8">
@@ -138,7 +162,7 @@ const Dashboard = () => {
         />
       )}
       <RepoList
-        repos={repos}
+        repos={filteredRepos}
         deleteRepo={deleteRepo}
         showChangelog={showChangelog}
       />

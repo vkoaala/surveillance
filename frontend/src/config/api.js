@@ -37,3 +37,5 @@ export const fetchChangelog = async (id) => {
     method: "GET",
   });
 };
+
+export const fetchScanStatus = async () => fetchAPI("/scan-status");

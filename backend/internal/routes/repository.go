@@ -48,7 +48,7 @@ func InitRepositoryRoutes(e *echo.Echo, db *gorm.DB) {
 
 		formattedDate := formatReleaseDate(releaseDate)
 		utils.Logger.Infof("Latest release for %s: %s - %s", payload.Name, releaseVersion, formattedDate)
-		utils.Logger.Infof("🟣 Initial scan finished for %s\n", payload.Name)
+		utils.Logger.Infof("🟣 Initial scan finished \n\n")
 
 		return ctx.JSON(http.StatusCreated, repo)
 	})
@@ -99,7 +99,7 @@ func InitRepositoryRoutes(e *echo.Echo, db *gorm.DB) {
 			return ctx.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to delete repository"})
 		}
 
-		utils.Logger.Infof("🗑️ Repository '%s' deleted successfully", repo.Name)
+		utils.Logger.Infof("🗑️ Repository %s deleted", repo.Name)
 		return ctx.JSON(http.StatusOK, map[string]string{"message": "Repository deleted"})
 	})
 }
