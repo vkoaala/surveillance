@@ -2,9 +2,11 @@ import { useState } from "react";
 import ConfirmBox from "@/components/ui/ConfirmBox";
 import RepoActions from "@/components/ui/RepoActions";
 import RepoDetails from "@/components/ui/RepoDetails";
+import EditRepoModal from "@/components/modals/EditRepoModal";
 
-const RepoList = ({ repos, deleteRepo, showChangelog }) => {
+const RepoList = ({ repos, deleteRepo, showChangelog, updateRepository }) => {
   const [confirming, setConfirming] = useState(null);
+  const [editingRepo, setEditingRepo] = useState(null);
 
   const confirmDelete = async (id) => {
     await deleteRepo(id);
@@ -30,9 +32,9 @@ const RepoList = ({ repos, deleteRepo, showChangelog }) => {
             <RepoDetails repo={repo} />
           </div>
           <RepoActions
-            repo={repo}
             onDelete={() => setConfirming(repo.ID)}
             onShowChangelog={() => showChangelog(repo.ID)}
+            onEdit={() => setEditingRepo(repo)}
           />
         </div>
       ))}
@@ -41,6 +43,13 @@ const RepoList = ({ repos, deleteRepo, showChangelog }) => {
           message="Are you sure you want to delete this repository?"
           onConfirm={() => confirmDelete(confirming)}
           onCancel={() => setConfirming(null)}
+        />
+      )}
+      {editingRepo && (
+        <EditRepoModal
+          repo={editingRepo}
+          closeModal={() => setEditingRepo(null)}
+          updateRepository={updateRepository}
         />
       )}
     </div>

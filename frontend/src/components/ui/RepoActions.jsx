@@ -1,7 +1,13 @@
-import { FaTrashAlt, FaRegFileAlt } from "react-icons/fa";
+import { FaTrashAlt, FaRegFileAlt, FaEdit } from "react-icons/fa";
 
-const RepoActions = ({ onDelete, onShowChangelog }) => (
+const RepoActions = ({ onDelete, onShowChangelog, onEdit }) => (
   <div className="flex items-center space-x-4">
+    <button
+      onClick={onEdit}
+      className="text-[var(--color-text)] hover:text-[var(--color-primary)] transition-all"
+    >
+      <FaEdit className="text-lg" />
+    </button>
     <button
       onClick={onShowChangelog}
       className="text-[var(--color-text)] hover:text-[var(--color-primary)] transition-all"

@@ -54,6 +54,9 @@ export const addRepositoryAPI = (repo) =>
 export const deleteRepositoryAPI = (id) =>
   apiRequest("delete", `/repositories/${id}`);
 
+export const updateRepositoryAPI = (id, updatedFields) =>
+  apiRequest("patch", `/repositories/${id}`, updatedFields);
+
 export const scanUpdatesAPI = () => apiRequest("post", "/scan-updates");
 
 export const fetchChangelog = (id) =>

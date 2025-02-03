@@ -22,25 +22,21 @@ func GetLatestReleaseInfo(repoName, githubToken string) (string, string, string)
 	if githubToken != "" {
 		req.Header.Set("Authorization", "Bearer "+githubToken)
 	}
-
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		utils.Logger.Warnf("Failed to fetch release info for %s: %v", repoName, err)
 		return "", "", ""
 	}
 	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusOK {
 		utils.Logger.Warnf("GitHub API request for %s failed with status: %s", repoName, resp.Status)
 		return "", "", ""
 	}
-
 	var release GitHubRelease
 	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
 		utils.Logger.Warnf("Failed to decode response for %s: %v", repoName, err)
 		return "", "", ""
 	}
-
 	date, _ := time.Parse(time.RFC3339, release.PublishedAt)
 	return release.TagName, date.Format("Jan 02 2006"), release.Body
 }
@@ -51,27 +47,22 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 		utils.Logger.Error("❌ Failed to retrieve repositories: ", err)
 		return err
 	}
-
 	emoji := "🔵"
 	if !isManual {
 		emoji = "🟢"
 	}
-
 	utils.Logger.Infof("%s %s scan started for %d repositories", emoji, scanType, len(repos))
-
 	updates := []string{}
 	for _, repo := range repos {
 		latestVersion, lastUpdated, changelog := GetLatestReleaseInfo(repo.Name, githubToken)
-
-		if latestVersion != "" && repo.CurrentVersion != latestVersion {
-			updates = append(updates, fmt.Sprintf("%s: %s -> %s", repo.Name, repo.CurrentVersion, latestVersion))
-			repo.CurrentVersion = latestVersion
+		if latestVersion != "" && repo.LatestRelease != latestVersion {
+			updates = append(updates, fmt.Sprintf("%s: %s -> %s", repo.Name, repo.LatestRelease, latestVersion))
 			repo.LatestRelease = latestVersion
+			repo.CurrentVersion = latestVersion
 			repo.LastUpdated = lastUpdated
 			repo.Changelog = changelog
 		}
 	}
-
 	if len(updates) > 0 {
 		if err := db.Save(&repos).Error; err != nil {
 			utils.Logger.Error("❌ Failed to update repositories: ", err)
@@ -81,9 +72,7 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 	} else {
 		utils.Logger.Info("✅ All repositories are up to date.")
 	}
-
 	UpdateLastScanTime(db)
-
 	utils.Logger.Infof("%s %s scan completed successfully", emoji, scanType)
 	return nil
 }

@@ -17,6 +17,7 @@ import (
 
 func RegisterRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *cron.EntryID) {
 	auth.RegisterAuthRoutes(e, db)
+	auth.RegisterPasswordPolicyRoute(e)
 	validation.RegisterValidationRoutes(e)
 	protected := e.Group("")
 	protected.Use(echojwt.WithConfig(echojwt.Config{

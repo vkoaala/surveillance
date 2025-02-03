@@ -6,6 +6,7 @@ import {
   fetchRepositories,
   addRepositoryAPI,
   deleteRepositoryAPI,
+  updateRepositoryAPI, // new API for updating repository info
   scanUpdatesAPI,
   fetchChangelog,
   fetchScanStatus,
@@ -60,6 +61,22 @@ const Dashboard = () => {
     }
   };
 
+  const updateRepository = async (id, newVersion) => {
+    try {
+      const updatedRepo = await updateRepositoryAPI(id, {
+        currentVersion: newVersion,
+      });
+      setRepos((prev) =>
+        prev.map((repo) =>
+          repo.ID === id
+            ? { ...repo, CurrentVersion: updatedRepo.CurrentVersion }
+            : repo,
+        ),
+      );
+    } catch {
+      console.error("Error updating repository");
+    }
+  };
   const scanForUpdates = async () => {
     setIsScanning(true);
     try {
@@ -68,7 +85,6 @@ const Dashboard = () => {
         .then(setRepos)
         .catch(() => console.error("Error fetching repositories after scan"));
 
-      // ✅ Fetch updated scan times
       fetchScanStatus()
         .then((data) => {
           setLastScan(data.lastScan);
@@ -165,6 +181,7 @@ const Dashboard = () => {
         repos={filteredRepos}
         deleteRepo={deleteRepo}
         showChangelog={showChangelog}
+        updateRepository={updateRepository}
       />
       {changelog && (
         <ChangelogBox {...changelog} onClose={() => setChangelog(null)} />
