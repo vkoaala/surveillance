@@ -16,6 +16,9 @@ func RegisterValidationRoutes(e *echo.Echo) {
 			utils.Logger.Error("Invalid payload for API key validation.")
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid request"})
 		}
+		if input.ApiKey == "" {
+			return c.JSON(http.StatusOK, map[string]string{"message": "GitHub API key is valid"})
+		}
 		if err := utils.ValidateGitHubAPIKey(input.ApiKey); err != nil {
 			utils.Logger.Error(err)
 			return c.JSON(http.StatusUnauthorized, map[string]string{"error": err.Error()})

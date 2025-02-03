@@ -16,7 +16,7 @@ const isValidCron = (value) => {
 };
 
 const Settings = ({ refreshBannerState }) => {
-  const { updateTheme } = useTheme();
+  const { setTheme } = useTheme();
   const [cronSchedule, setCronSchedule] = useState("");
   const [githubApiKey, setGithubApiKey] = useState("");
   const [tempTheme, setTempTheme] = useState("tokyoNight");
@@ -32,7 +32,6 @@ const Settings = ({ refreshBannerState }) => {
         const settings = await fetchSettings();
         setCronSchedule(settings.cronSchedule);
         setTempTheme(settings.theme);
-
         if (settings.githubApiKey) {
           setGithubApiKey("●●●●●●●●");
           setIsLocked(true);
@@ -55,8 +54,8 @@ const Settings = ({ refreshBannerState }) => {
   };
 
   const validateGitHubKey = async () => {
-    if (githubApiKey === "●●●●●●●●" || isLocked) return true;
-
+    if (!githubApiKey.trim() || githubApiKey === "●●●●●●●●" || isLocked)
+      return true;
     try {
       const isValid = await validateApiKey(githubApiKey.trim());
       if (isValid) return true;
@@ -83,20 +82,17 @@ const Settings = ({ refreshBannerState }) => {
   const handleSaveSettings = async () => {
     if (!validateForm()) return;
     if (!(await validateGitHubKey())) return;
-
     setSaving(true);
     try {
       let apiKeyToSave = "";
       if (isLocked) apiKeyToSave = "LOCKED";
       else if (githubApiKey.trim() === "") apiKeyToSave = "";
       else if (githubApiKey !== "●●●●●●●●") apiKeyToSave = githubApiKey.trim();
-
       await updateSettings({
         cronSchedule,
         githubApiKey: apiKeyToSave === "LOCKED" ? "" : apiKeyToSave,
         theme: tempTheme,
       });
-
       if (apiKeyToSave === "" || apiKeyToSave === "LOCKED") {
         setGithubApiKey(apiKeyToSave === "" ? "" : "●●●●●●●●");
         setIsLocked(apiKeyToSave !== "");
@@ -104,11 +100,10 @@ const Settings = ({ refreshBannerState }) => {
         setGithubApiKey("●●●●●●●●");
         setIsLocked(true);
       }
-
-      updateTheme(tempTheme);
+      setTheme(tempTheme);
       showToast("success", "Settings saved successfully.");
       setErrors({});
-      await refreshBannerState();
+      if (refreshBannerState) await refreshBannerState();
     } catch {
       showToast("error", "Failed to save settings.");
     } finally {
@@ -127,7 +122,7 @@ const Settings = ({ refreshBannerState }) => {
       setGithubApiKey("");
       setIsLocked(false);
       showToast("success", "API key reset successfully.");
-      await refreshBannerState();
+      if (refreshBannerState) await refreshBannerState();
     } catch {
       showToast("error", "Failed to reset API key.");
     }
@@ -139,19 +134,16 @@ const Settings = ({ refreshBannerState }) => {
   return (
     <div className="container max-w-4xl mx-auto p-6">
       {toast && <Toast type={toast.type} message={toast.message} />}
-
       <div className="text-center mb-8">
         <h1 className="text-5xl font-extrabold text-[var(--color-primary)]">
           Settings
         </h1>
         <p className="text-gray-400 mt-2">Manage your configurations.</p>
       </div>
-
       <div className="bg-[var(--color-card)] p-8 shadow-md rounded-xl border border-[var(--color-border)]">
         <h2 className="text-2xl font-bold mb-6 text-[var(--color-primary)]">
           General
         </h2>
-
         <div className="space-y-6">
           <div className="relative">
             <label className="block text-sm font-medium mb-2">Theme</label>
@@ -168,7 +160,6 @@ const Settings = ({ refreshBannerState }) => {
               </select>
             </div>
           </div>
-
           <div className="relative">
             <label className="block text-sm font-medium mb-2">
               Cron Schedule
@@ -189,7 +180,6 @@ const Settings = ({ refreshBannerState }) => {
               <p className="text-red-500 text-sm mt-1">{errors.cronSchedule}</p>
             )}
           </div>
-
           <div className="relative">
             <label className="block text-sm font-medium mb-2">
               GitHub API Key
@@ -219,7 +209,6 @@ const Settings = ({ refreshBannerState }) => {
             )}
           </div>
         </div>
-
         <div className="mt-8 flex justify-end gap-4">
           {isLocked && (
             <button

@@ -1,10 +1,17 @@
-import { Link, useLocation } from "react-router-dom";
-import { FaHome, FaBell, FaCog } from "react-icons/fa";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FaHome, FaBell, FaCog, FaSignOutAlt } from "react-icons/fa";
 import SurveillanceLogo from "@/components/layout/SurveillanceLogo";
 
 const Header = ({ showBanner }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+
   const isActive = (path) => location.pathname === path;
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("token"); // Clear token on logout
+    navigate("/login", { replace: true }); // Redirect to login
+  };
 
   return (
     <header className="w-full bg-[var(--color-card)] shadow-md">
@@ -29,6 +36,12 @@ const Header = ({ showBanner }) => {
           >
             <FaCog />
           </Link>
+          <button
+            onClick={handleLogout}
+            className="text-2xl text-[var(--color-text)] hover:text-[var(--color-primary)] transition"
+          >
+            <FaSignOutAlt />
+          </button>
         </nav>
       </div>
       {showBanner && (

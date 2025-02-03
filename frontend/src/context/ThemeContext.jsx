@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { fetchSettings, updateSettings } from "@/config/api";
+import { fetchSettings } from "@/config/api";
+
 const themes = {
   tokyoNight: {
     "--color-bg": "#1a1b26",
@@ -27,36 +28,35 @@ const themes = {
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState("tokyoNight");
-
-  useEffect(() => {
-    fetchSettings()
-      .then((settings) => {
-        if (settings.theme) {
-          setTheme(settings.theme);
-          applyTheme(settings.theme);
-        }
-      })
-      .catch(() => console.error("Error loading theme settings"));
-  }, []);
+  const [theme, setThemeState] = useState("tokyoNight");
 
   const applyTheme = (themeName) => {
     const themeVars = themes[themeName] || themes.tokyoNight;
-    Object.entries(themeVars).forEach(([key, value]) =>
-      document.documentElement.style.setProperty(key, value),
-    );
+    Object.entries(themeVars).forEach(([key, value]) => {
+      document.documentElement.style.setProperty(key, value);
+    });
   };
 
-  const updateTheme = (newTheme) => {
-    setTheme(newTheme);
-    updateSettings({ theme: newTheme }).catch(() =>
-      console.error("Error saving theme setting"),
-    );
-    applyTheme(newTheme);
+  const setTheme = (themeName) => {
+    setThemeState(themeName);
+    applyTheme(themeName);
   };
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await fetchSettings();
+        const t = settings?.theme || "tokyoNight";
+        setTheme(t);
+      } catch {
+        setTheme("tokyoNight");
+      }
+    };
+    loadSettings();
+  }, []);
 
   return (
-    <ThemeContext.Provider value={{ theme, updateTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

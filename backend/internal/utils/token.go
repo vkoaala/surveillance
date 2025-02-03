@@ -29,11 +29,10 @@ func ValidateGitHubAPIKey(apiKey string) error {
 		return nil
 	}
 
-	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "https://api.github.com/user", nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", apiKey))
 
-	resp, err := client.Do(req)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("GitHub API request failed")
 	}

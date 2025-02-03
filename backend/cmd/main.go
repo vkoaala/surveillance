@@ -14,13 +14,14 @@ func main() {
 	utils.InitLogger()
 
 	db := database.InitDB()
-
 	scheduler, cronJobID := cron.StartScheduler(db)
 
 	e := echo.New()
+
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:5173"},
-		AllowMethods: []string{echo.GET, echo.POST, echo.PUT, echo.DELETE},
+		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowCredentials: true,
 	}))
 
 	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -33,6 +34,5 @@ func main() {
 	})
 
 	routes.RegisterRoutes(e, db, scheduler, &cronJobID)
-
 	e.Logger.Fatal(e.Start(":8080"))
 }

@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func RegisterSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *cron.EntryID) {
+func RegisterSettingsRoutes(e *echo.Group, db *gorm.DB, scheduler *cron.Cron, jobID *cron.EntryID) {
 	e.GET("/settings", func(c echo.Context) error {
 		var settings models.Settings
 		if err := db.First(&settings).Error; err != nil {
@@ -32,7 +32,6 @@ func RegisterSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, job
 			"theme":        settings.Theme,
 		})
 	})
-
 	e.POST("/settings", func(c echo.Context) error {
 		var input struct {
 			Theme        string `json:"theme"`
@@ -51,7 +50,6 @@ func RegisterSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, job
 			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve settings"})
 		}
 		settingsUpdated := false
-
 		if settings.CronSchedule != input.CronSchedule {
 			scheduler.Remove(*jobID)
 			newJobID, err := scheduler.AddFunc(input.CronSchedule, func() {
@@ -68,32 +66,84 @@ func RegisterSettingsRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, job
 			settingsUpdated = true
 			utils.Logger.Infof("🕒 Cron job updated with new schedule: %s", input.CronSchedule)
 		}
-
 		if input.IsReset {
 			settings.GitHubAPIKey = ""
 			settingsUpdated = true
 			utils.Logger.Warn("🔑 GitHub API key has been reset.")
-		} else if input.GitHubAPIKey != "●●●●●●●●" && input.GitHubAPIKey != "" {
-			if err := utils.ValidateGitHubAPIKey(input.GitHubAPIKey); err != nil {
-				return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid GitHub API key"})
+		} else if input.GitHubAPIKey != "" && input.GitHubAPIKey != "●●●●●●●●" {
+			if err := utils.ValidateGitHubAPIKey(input.GitHubAPIKey); err == nil {
+				encryptedKey, err := utils.EncryptAES(input.GitHubAPIKey, settings.EncryptionKey)
+				if err == nil {
+					settings.GitHubAPIKey = encryptedKey
+					settingsUpdated = true
+					utils.Logger.Info("✅ New GitHub API key validated and saved.")
+				} else {
+					utils.Logger.Error("Encryption failed: ", err)
+				}
+			} else {
+				utils.Logger.Warn("Provided GitHub API key is invalid, skipping API key update.")
 			}
-			encryptedKey, err := utils.EncryptAES(input.GitHubAPIKey, settings.EncryptionKey)
-			if err != nil {
-				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Encryption failed"})
-			}
-			settings.GitHubAPIKey = encryptedKey
-			settingsUpdated = true
-			utils.Logger.Info("✅ New GitHub API key validated and saved.")
 		}
-
+		if settings.Theme != input.Theme {
+			settings.Theme = input.Theme
+			settingsUpdated = true
+		}
 		if settingsUpdated {
 			if err := db.Save(&settings).Error; err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update settings"})
 			}
 		}
-
-		return c.JSON(http.StatusOK, map[string]string{})
+		return c.JSON(http.StatusOK, map[string]string{"message": "Settings updated successfully"})
 	})
+}
+
+func loadOrCreateSettings(db *gorm.DB) (models.Settings, error) {
+	var settings models.Settings
+	err := db.First(&settings).Error
+	if err == gorm.ErrRecordNotFound {
+		settings = models.Settings{
+			Theme:        "tokyoNight",
+			CronSchedule: "0 */12 * * *",
+		}
+		err = db.Create(&settings).Error
+	}
+	return settings, err
+}
+
+func decryptGitHubKey(settings *models.Settings) string {
+	if settings.GitHubAPIKey == "" {
+		return ""
+	}
+	decryptedKey, err := utils.DecryptAES(settings.GitHubAPIKey, settings.EncryptionKey)
+	if err != nil {
+		return ""
+	}
+	return decryptedKey
+}
+
+func updateCronSchedule(newSchedule string, scheduler *cron.Cron, jobID *cron.EntryID, db *gorm.DB) error {
+	scheduler.Remove(*jobID)
+	newJobID, err := scheduler.AddFunc(newSchedule, func() {
+		githubToken := utils.GetGitHubToken(db)
+		services.MonitorRepositories(db, githubToken, "", false)
+	})
+	if err != nil {
+		return err
+	}
+	*jobID = newJobID
+	return nil
+}
+
+func handleGitHubKeyUpdate(newKey string, settings *models.Settings) error {
+	if err := utils.ValidateGitHubAPIKey(newKey); err != nil {
+		return err
+	}
+	encryptedKey, err := utils.EncryptAES(newKey, settings.EncryptionKey)
+	if err != nil {
+		return err
+	}
+	settings.GitHubAPIKey = encryptedKey
+	return nil
 }
 
 func isValidCronExpression(cronExpr string) bool {

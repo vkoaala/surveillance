@@ -17,7 +17,12 @@ func InitDB() *gorm.DB {
 		utils.Logger.Fatal("Failed to connect to the database: ", err)
 	}
 
-	db.AutoMigrate(&models.Settings{}, &models.Repository{}, &models.NotificationSettings{})
+	db.AutoMigrate(
+		&models.Settings{},
+		&models.Repository{},
+		&models.NotificationSettings{},
+		&models.User{},
+	)
 
 	ensureDefaultSettings(db)
 	return db

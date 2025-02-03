@@ -84,3 +84,41 @@ body {
 .error-message {
   @apply text-red-500 text-sm mt-2;
 }
+
+/* General overrides specifically for login and register forms */
+.login,
+.register {
+  @apply min-h-screen flex items-center justify-center bg-[var(--color-bg)];
+}
+
+.login-card,
+.register-card {
+  @apply w-full max-w-md p-8 bg-[var(--color-card)] rounded-lg shadow-lg;
+}
+
+/* Form title style override */
+.login-title,
+.register-title {
+  @apply text-3xl font-bold text-center text-[var(--color-primary)] mb-6;
+}
+
+/* Improved input field with icon padding adjustment */
+.input-field-login {
+  @apply w-full h-12 rounded-lg bg-[var(--color-card)] text-[var(--color-text)] border border-[var(--color-border)] pl-12 pr-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+}
+
+/* Button improvements for login/register */
+.btn-login,
+.btn-register {
+  @apply h-12 rounded-lg bg-[var(--color-primary)] text-white font-bold hover:bg-[var(--color-primary-hover)] transition-all shadow-md;
+}
+
+/* Icon position adjustments for input fields */
+.input-icon {
+  @apply absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl;
+}
+
+/* Toast message adjustments specifically for login/register if needed */
+.toast {
+  @apply text-sm font-medium text-center mt-2 text-red-500;
+}
