@@ -24,7 +24,7 @@ const RepoList = ({ repos, deleteRepo, showChangelog, updateRepository }) => {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6 items-start">
         {sortedRepos.map((repo, index) => (
           <RepoCard
             key={`${repo.ID}-${index}`}

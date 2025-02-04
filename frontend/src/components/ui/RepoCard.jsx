@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { FaChevronDown, FaArrowCircleUp } from "react-icons/fa";
+import { FaChevronDown } from "react-icons/fa";
 import RepoDetails from "@/components/ui/RepoDetails";
 import RepoActions from "@/components/ui/RepoActions";
-import { useTheme } from "@/context/ThemeContext";
 
 const RepoCard = ({ repo, onDelete, onShowChangelog, onEdit }) => {
   const [expanded, setExpanded] = useState(false);
-  const { theme } = useTheme();
   const toggleExpand = () => setExpanded((prev) => !prev);
 
   const updateAvailable =
@@ -14,12 +12,8 @@ const RepoCard = ({ repo, onDelete, onShowChangelog, onEdit }) => {
     repo.LatestRelease &&
     repo.CurrentVersion !== repo.LatestRelease;
 
-  const badgeThemes = {
-    light: "bg-gradient-to-r from-green-500 to-green-600",
-    dark: "bg-gradient-to-r from-green-600 to-green-700",
-    tokyoNight: "bg-gradient-to-r from-purple-600 to-purple-700",
-  };
-  const badgeClass = badgeThemes[theme] || badgeThemes.light;
+  const updateButtonClasses =
+    "bg-[var(--color-primary-hover)] border border-[var(--color-border)] hover:bg-[var(--color-primary)] text-xs text-white font-semibold py-1 px-2 rounded-md shadow-sm tracking-wide";
 
   const displayName =
     repo.Name && repo.Name.includes("/")
@@ -37,16 +31,11 @@ const RepoCard = ({ repo, onDelete, onShowChangelog, onEdit }) => {
         </span>
         <div className="flex items-center space-x-2">
           {updateAvailable && (
-            <div
-              className={`bg-gradient-to-r ${badgeClass} px-2 py-0.5 rounded-full shadow-md`}
-            >
-              <span className="text-xs text-white font-medium">
-                Update Available
-              </span>
-            </div>
+            <button className={updateButtonClasses}>Update Available</button>
           )}
           <FaChevronDown
-            className={`transition-transform duration-300 ${expanded ? "rotate-180" : "rotate-0"} text-[var(--color-text)] w-5 h-5`}
+            className={`transition-transform duration-300 ${expanded ? "rotate-180" : "rotate-0"
+              } text-[var(--color-text)] w-5 h-5`}
           />
         </div>
       </div>
