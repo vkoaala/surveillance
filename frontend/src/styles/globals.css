@@ -8,10 +8,15 @@
   --color-primary-hover: #3b82f6;
   --color-border: #3b4261;
   --color-border-light: #4b526d;
-  /* Clean subtle border color */
+  --color-details-bg: #2a2f4b;
+  --color-action-edit: #3a6ea5;
+  --color-action-edit-hover: #325a8c;
+  --color-action-changelog: #5a5a9e;
+  --color-action-changelog-hover: #484880;
+  --color-action-delete: #a83232;
+  --color-action-delete-hover: #8c2b2b;
 }
 
-/* Global styles */
 body {
   @apply bg-[var(--color-bg)] text-[var(--color-text)];
   font-family: "JetBrains Mono", monospace;
@@ -21,7 +26,6 @@ body {
   @apply max-w-6xl mx-auto p-8;
 }
 
-/* Buttons */
 .btn {
   @apply px-6 py-3 rounded-lg font-bold transition-all shadow-md;
 }
@@ -38,45 +42,36 @@ body {
   @apply flex gap-3 justify-end;
 }
 
-/* Input Fields */
 .input-field {
   @apply w-full h-14 pl-12 pr-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
 }
-
-/* Version input takes 50% width */
 
 .input-version {
   @apply h-14 pl-12 pr-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
 }
 
-/* Flex container to align version input and buttons */
 .input-row {
   @apply flex items-center justify-between gap-4 mt-4;
 }
 
-/* Modal container with clean border */
 .modal-container {
   @apply p-6 rounded-lg shadow-md border border-[var(--color-border-light)] bg-[var(--color-card)];
 }
 
-/* Titles for form sections */
 .input-title {
   @apply text-sm font-semibold text-gray-300 mb-2;
 }
 
-/* Card Styling */
 .card {
   @apply bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)];
 }
 
-/* Headings */
 .prose-invert h1,
 .prose-invert h2,
 .prose-invert h3 {
   @apply text-[var(--color-primary)] font-bold mt-4;
 }
 
-/* Repo List Styles */
 .repo-name {
   @apply text-[var(--color-primary)] font-bold text-lg hover:underline;
 }
@@ -85,7 +80,6 @@ body {
   @apply text-red-500 text-sm mt-2;
 }
 
-/* General overrides specifically for login and register forms */
 .login,
 .register {
   @apply min-h-screen flex items-center justify-center bg-[var(--color-bg)];
@@ -96,29 +90,24 @@ body {
   @apply w-full max-w-md p-8 bg-[var(--color-card)] rounded-lg shadow-lg;
 }
 
-/* Form title style override */
 .login-title,
 .register-title {
   @apply text-3xl font-bold text-center text-[var(--color-primary)] mb-6;
 }
 
-/* Improved input field with icon padding adjustment */
 .input-field-login {
   @apply w-full h-12 rounded-lg bg-[var(--color-card)] text-[var(--color-text)] border border-[var(--color-border)] pl-12 pr-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)];
 }
 
-/* Button improvements for login/register */
 .btn-login,
 .btn-register {
   @apply h-12 rounded-lg bg-[var(--color-primary)] text-white font-bold hover:bg-[var(--color-primary-hover)] transition-all shadow-md;
 }
 
-/* Icon position adjustments for input fields */
 .input-icon {
   @apply absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl;
 }
 
-/* Toast message adjustments specifically for login/register if needed */
 .toast {
   @apply text-sm font-medium text-center mt-2 text-red-500;
 }

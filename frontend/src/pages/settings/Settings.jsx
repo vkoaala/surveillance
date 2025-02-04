@@ -4,7 +4,6 @@ import Toast from "@/components/ui/Toast";
 import { FaGithub, FaLock, FaClock, FaPalette } from "react-icons/fa";
 import { fetchSettings, updateSettings, validateApiKey } from "@/config/api";
 import cronParser from "cron-parser";
-
 const isValidCron = (value) => {
   if (!value.trim()) return false;
   try {
@@ -14,7 +13,6 @@ const isValidCron = (value) => {
     return false;
   }
 };
-
 const Settings = ({ refreshBannerState }) => {
   const { setTheme } = useTheme();
   const [cronSchedule, setCronSchedule] = useState("");
@@ -25,7 +23,6 @@ const Settings = ({ refreshBannerState }) => {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -40,19 +37,17 @@ const Settings = ({ refreshBannerState }) => {
           setIsLocked(false);
         }
       } catch {
-        showToast("error", "Failed to load settings.");
+        setToast({ type: "error", message: "Failed to load settings." });
       } finally {
         setLoading(false);
       }
     };
     loadSettings();
   }, []);
-
   const showToast = (type, message) => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 3000);
   };
-
   const validateGitHubKey = async () => {
     if (!githubApiKey.trim() || githubApiKey === "●●●●●●●●" || isLocked)
       return true;
@@ -67,7 +62,6 @@ const Settings = ({ refreshBannerState }) => {
     }
     return false;
   };
-
   const validateForm = () => {
     let formErrors = {};
     if (!cronSchedule.trim()) {
@@ -78,7 +72,6 @@ const Settings = ({ refreshBannerState }) => {
     setErrors(formErrors);
     return Object.keys(formErrors).length === 0;
   };
-
   const handleSaveSettings = async () => {
     if (!validateForm()) return;
     if (!(await validateGitHubKey())) return;
@@ -110,7 +103,6 @@ const Settings = ({ refreshBannerState }) => {
       setSaving(false);
     }
   };
-
   const handleResetApiKey = async () => {
     try {
       await updateSettings({
@@ -127,10 +119,8 @@ const Settings = ({ refreshBannerState }) => {
       showToast("error", "Failed to reset API key.");
     }
   };
-
   if (loading)
     return <div className="text-center text-gray-400">Loading settings...</div>;
-
   return (
     <div className="container max-w-4xl mx-auto p-6">
       {toast && <Toast type={toast.type} message={toast.message} />}
@@ -186,9 +176,9 @@ const Settings = ({ refreshBannerState }) => {
             </label>
             <div className="relative">
               {isLocked ? (
-                <FaLock className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+                <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
               ) : (
-                <FaGithub className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 text-lg" />
+                <FaGithub className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
               )}
               <input
                 type="password"
@@ -230,5 +220,4 @@ const Settings = ({ refreshBannerState }) => {
     </div>
   );
 };
-
 export default Settings;

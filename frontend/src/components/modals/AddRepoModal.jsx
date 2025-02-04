@@ -49,7 +49,7 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
     );
 
     const alreadyPresent = existingRepos.some(
-      (r) => r.URL.toLowerCase() === validRepoUrl.toLowerCase(),
+      (r) => (r.URL || "").toLowerCase() === validRepoUrl.toLowerCase(),
     );
     if (alreadyPresent) {
       setError("Repository is already present.");
@@ -79,7 +79,8 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
       setCurrentVersion("");
       setIsAdding(false);
     } catch (err) {
-      setError("Failed to add repository.");
+      const msg = err.response?.data?.error || "Failed to add repository.";
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -88,9 +89,6 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
   return (
     <div className="bg-[var(--color-card)] p-8 rounded-lg shadow-md border border-[var(--color-border)] w-full space-y-6">
       <div>
-        <label className="block text-sm font-medium mb-2">
-          Repository URL or owner/repo
-        </label>
         <div className="relative">
           <FaGithub className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none" />
           <input
@@ -98,18 +96,13 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
             placeholder="https://github.com/user/repo"
             value={newRepo}
             onChange={(e) => setNewRepo(e.target.value)}
-            className={`w-full h-14 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${
-              error ? "border-red-500" : "border-[var(--color-border)]"
-            }`}
+            className={`w-full h-14 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border ${error ? "border-red-500" : "border-[var(--color-border)]"
+              }`}
             autoFocus
           />
         </div>
       </div>
-
       <div>
-        <label className="block text-sm font-medium mb-2">
-          Version (optional)
-        </label>
         <div className="flex items-center gap-4">
           <div className="relative flex-1">
             <FaTag className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl pointer-events-none" />
@@ -121,19 +114,16 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
               className="w-full h-14 pl-12 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] outline-none border border-[var(--color-border)]"
             />
           </div>
-
           <button
             onClick={handleAddRepo}
             disabled={isLoading}
-            className={`h-14 px-6 rounded-md shadow-md transition-all text-sm ${
-              isLoading
+            className={`h-14 px-6 rounded-md shadow-md transition-all text-sm ${isLoading
                 ? "bg-gray-500 cursor-not-allowed"
                 : "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)]"
-            }`}
+              }`}
           >
             {isLoading ? "Adding..." : "Save"}
           </button>
-
           <button
             onClick={() => setIsAdding(false)}
             className="h-14 px-6 bg-gray-600 text-white rounded-md shadow-md hover:bg-gray-700 transition-all text-sm"
@@ -142,7 +132,6 @@ const AddRepoModal = ({ setIsAdding, addRepository, existingRepos = [] }) => {
           </button>
         </div>
       </div>
-
       {error && <div className="text-red-500 text-sm text-center">{error}</div>}
     </div>
   );

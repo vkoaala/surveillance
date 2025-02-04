@@ -6,7 +6,7 @@ import {
   fetchRepositories,
   addRepositoryAPI,
   deleteRepositoryAPI,
-  updateRepositoryAPI, // new API for updating repository info
+  updateRepositoryAPI,
   scanUpdatesAPI,
   fetchChangelog,
   fetchScanStatus,
@@ -160,7 +160,7 @@ const Dashboard = () => {
         </p>
       </div>
 
-      <div className="relative mb-8">
+      <div className="relative mb-6">
         <FaSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl" />
         <input
           type="text"

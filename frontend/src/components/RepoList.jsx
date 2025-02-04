@@ -1,47 +1,47 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import ConfirmBox from "@/components/ui/ConfirmBox";
-import RepoActions from "@/components/ui/RepoActions";
-import RepoDetails from "@/components/ui/RepoDetails";
 import EditRepoModal from "@/components/modals/EditRepoModal";
+import RepoCard from "@/components/ui/RepoCard";
 
 const RepoList = ({ repos, deleteRepo, showChangelog, updateRepository }) => {
   const [confirming, setConfirming] = useState(null);
   const [editingRepo, setEditingRepo] = useState(null);
 
-  const confirmDelete = async (id) => {
-    await deleteRepo(id);
-    setConfirming(null);
-  };
+  const sortedRepos = useMemo(() => {
+    return [...repos].sort((a, b) => {
+      const aUpdate =
+        a.CurrentVersion &&
+        a.LatestRelease &&
+        a.CurrentVersion !== a.LatestRelease;
+      const bUpdate =
+        b.CurrentVersion &&
+        b.LatestRelease &&
+        b.CurrentVersion !== b.LatestRelease;
+      if (aUpdate === bUpdate) return 0;
+      return aUpdate ? -1 : 1;
+    });
+  }, [repos]);
 
   return (
-    <div className="space-y-4 mt-6">
-      {repos.map((repo) => (
-        <div
-          key={repo.ID}
-          className="card flex justify-between items-center hover:shadow-lg transition-transform hover:-translate-y-1"
-        >
-          <div>
-            <a
-              href={repo.URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="repo-name"
-            >
-              {repo.Name || "Unnamed Repository"}
-            </a>
-            <RepoDetails repo={repo} />
-          </div>
-          <RepoActions
-            onDelete={() => setConfirming(repo.ID)}
-            onShowChangelog={() => showChangelog(repo.ID)}
-            onEdit={() => setEditingRepo(repo)}
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6">
+        {sortedRepos.map((repo, index) => (
+          <RepoCard
+            key={`${repo.ID}-${index}`}
+            repo={repo}
+            onDelete={(id) => setConfirming(id)}
+            onShowChangelog={(id) => showChangelog(id)}
+            onEdit={(repo) => setEditingRepo(repo)}
           />
-        </div>
-      ))}
+        ))}
+      </div>
       {confirming && (
         <ConfirmBox
           message="Are you sure you want to delete this repository?"
-          onConfirm={() => confirmDelete(confirming)}
+          onConfirm={() => {
+            deleteRepo(confirming);
+            setConfirming(null);
+          }}
           onCancel={() => setConfirming(null)}
         />
       )}
@@ -52,7 +52,7 @@ const RepoList = ({ repos, deleteRepo, showChangelog, updateRepository }) => {
           updateRepository={updateRepository}
         />
       )}
-    </div>
+    </>
   );
 };
 
