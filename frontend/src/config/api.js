@@ -74,6 +74,9 @@ export const fetchNotifications = () => apiRequest("get", "/notifications");
 export const updateNotifications = (settings) =>
   apiRequest("post", "/notifications", settings);
 
+export const testNotificationAPI = () =>
+  apiRequest("post", "/notifications/test");
+
 export const loginUser = (credentials) =>
   apiRequest("post", "/auth/login", credentials);
 

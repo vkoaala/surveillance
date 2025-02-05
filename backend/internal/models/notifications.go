@@ -4,8 +4,8 @@ import "gorm.io/gorm"
 
 type NotificationSettings struct {
 	gorm.Model
-	WebhookURL          string
-	DiscordName         string
-	DiscordAvatar       string
-	NotificationMessage string
+	WebhookURL          string `json:"webhookUrl"`
+	DiscordName         string `json:"discordName"`
+	DiscordAvatar       string `json:"discordAvatar"`
+	NotificationMessage string `json:"notificationMessage"`
 }

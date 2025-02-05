@@ -1,9 +1,17 @@
+// ./frontend/src/components/RepoList.jsx
+
 import { useMemo, useState } from "react";
 import ConfirmBox from "@/components/ui/ConfirmBox";
 import EditRepoModal from "@/components/modals/EditRepoModal";
 import RepoCard from "@/components/ui/RepoCard";
 
-const RepoList = ({ repos, deleteRepo, showChangelog, updateRepository }) => {
+const RepoList = ({
+  repos,
+  deleteRepo,
+  showChangelog,
+  updateRepository,
+  layout,
+}) => {
   const [confirming, setConfirming] = useState(null);
   const [editingRepo, setEditingRepo] = useState(null);
 
@@ -22,9 +30,16 @@ const RepoList = ({ repos, deleteRepo, showChangelog, updateRepository }) => {
     });
   }, [repos]);
 
+  // Determine grid classes based on layout prop
+  // For vertical layout, use a single column. For grid layout, use one column on small screens and two on larger.
+  const gridClasses =
+    layout === "vertical"
+      ? "grid grid-cols-1 gap-6 mt-6 items-start"
+      : "grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6 items-start";
+
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6 items-start">
+      <div className={gridClasses}>
         {sortedRepos.map((repo, index) => (
           <RepoCard
             key={`${repo.ID}-${index}`}

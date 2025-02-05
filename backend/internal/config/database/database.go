@@ -25,6 +25,7 @@ func InitDB() *gorm.DB {
 	)
 
 	ensureDefaultSettings(db)
+	ensureDefaultNotificationSettings(db)
 	return db
 }
 
@@ -38,6 +39,19 @@ func ensureDefaultSettings(db *gorm.DB) {
 			GitHubAPIKey:  "",
 			EncryptionKey: utils.GenerateEncryptionKey(),
 			LastScan:      "No scan performed yet",
+		})
+	}
+}
+
+func ensureDefaultNotificationSettings(db *gorm.DB) {
+	var count int64
+	db.Model(&models.NotificationSettings{}).Count(&count)
+	if count == 0 {
+		db.Create(&models.NotificationSettings{
+			WebhookURL:          "",
+			DiscordName:         "Surveillance Bot",
+			DiscordAvatar:       "",
+			NotificationMessage: "Surveillance Discord notification: Webhook is working!",
 		})
 	}
 }

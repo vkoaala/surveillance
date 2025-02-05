@@ -1,7 +1,9 @@
+// ./frontend/src/pages/dashboard/Dashboard.jsx
+
 import { useState, useEffect, useMemo } from "react";
 import RepoList from "@/components/RepoList";
 import AddRepoModal from "@/components/modals/AddRepoModal";
-import { FaPlus, FaSyncAlt, FaSearch } from "react-icons/fa";
+import { FaPlus, FaSyncAlt, FaSearch, FaThLarge, FaList } from "react-icons/fa"; // import icons for layout
 import {
   fetchRepositories,
   addRepositoryAPI,
@@ -21,6 +23,8 @@ const Dashboard = () => {
   const [lastScan, setLastScan] = useState("Fetching...");
   const [nextScan, setNextScan] = useState("Calculating...");
   const [changelog, setChangelog] = useState(null);
+  // Add layout state: "grid" for two-column (when screen permits) and "vertical" for single column.
+  const [layout, setLayout] = useState("grid");
 
   useEffect(() => {
     fetchRepositories()
@@ -77,6 +81,7 @@ const Dashboard = () => {
       console.error("Error updating repository");
     }
   };
+
   const scanForUpdates = async () => {
     setIsScanning(true);
     try {
@@ -112,6 +117,11 @@ const Dashboard = () => {
     }
   };
 
+  // Handler to toggle the layout state
+  const toggleLayout = () => {
+    setLayout((prev) => (prev === "grid" ? "vertical" : "grid"));
+  };
+
   return (
     <div className="container max-w-5xl mx-auto p-6">
       <div className="text-center mb-8">
@@ -123,6 +133,7 @@ const Dashboard = () => {
         </p>
       </div>
 
+      {/* Top buttons */}
       <div className="flex justify-center gap-6 mb-4">
         <button
           onClick={() => setIsAdding(true)}
@@ -140,6 +151,21 @@ const Dashboard = () => {
           ) : (
             <>
               <FaSyncAlt /> Scan for Updates
+            </>
+          )}
+        </button>
+        {/* Layout toggle button */}
+        <button
+          onClick={toggleLayout}
+          className="btn btn-secondary flex items-center gap-2"
+        >
+          {layout === "grid" ? (
+            <>
+              <FaList /> Vertical Layout
+            </>
+          ) : (
+            <>
+              <FaThLarge /> Grid Layout
             </>
           )}
         </button>
@@ -177,11 +203,13 @@ const Dashboard = () => {
           existingRepos={repos}
         />
       )}
+      {/* Pass the layout prop to RepoList */}
       <RepoList
         repos={filteredRepos}
         deleteRepo={deleteRepo}
         showChangelog={showChangelog}
         updateRepository={updateRepository}
+        layout={layout} // new prop for layout
       />
       {changelog && (
         <ChangelogBox {...changelog} onClose={() => setChangelog(null)} />
