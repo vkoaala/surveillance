@@ -1,5 +1,3 @@
-// ./frontend/src/pages/dashboard/Dashboard.jsx
-
 import { useState, useEffect, useMemo } from "react";
 import RepoList from "@/components/RepoList";
 import AddRepoModal from "@/components/modals/AddRepoModal";
@@ -23,7 +21,6 @@ const Dashboard = () => {
   const [lastScan, setLastScan] = useState("Fetching...");
   const [nextScan, setNextScan] = useState("Calculating...");
   const [changelog, setChangelog] = useState(null);
-  // Add layout state: "grid" for two-column (when screen permits) and "vertical" for single column.
   const [layout, setLayout] = useState("grid");
 
   useEffect(() => {

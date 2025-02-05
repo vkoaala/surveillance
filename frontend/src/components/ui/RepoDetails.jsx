@@ -22,25 +22,20 @@ const timeAgo = (dateString) => {
   return "just now";
 };
 
-const RepoDetails = ({ repo, onEditClick, onShowChangelog }) => {
+const RepoDetails = ({ repo }) => {
   const formattedPublished = repo.PublishedAt
     ? new Date(repo.PublishedAt).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      })
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
     : "";
-
   const detailBoxClasses =
-    "bg-[var(--color-details-bg)] border border-[var(--color-border)] rounded-md p-3 cursor-pointer transition-all duration-300";
-
+    "bg-[var(--color-details-bg)] border border-[var(--color-border)] rounded-md p-3 transition-all duration-300";
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-3 gap-3 text-center">
-        <div
-          className={detailBoxClasses}
-          onClick={() => onEditClick && onEditClick(repo)}
-        >
+        <div className={detailBoxClasses}>
           <span className="block text-xs uppercase tracking-wider text-gray-400">
             Installed
           </span>
@@ -48,11 +43,7 @@ const RepoDetails = ({ repo, onEditClick, onShowChangelog }) => {
             {repo.CurrentVersion || "Not Set"}
           </div>
         </div>
-
-        <div
-          className={detailBoxClasses}
-          onClick={() => onShowChangelog && onShowChangelog()}
-        >
+        <div className={detailBoxClasses}>
           <span className="block text-xs uppercase tracking-wider text-gray-400">
             Latest
           </span>
@@ -65,7 +56,6 @@ const RepoDetails = ({ repo, onEditClick, onShowChangelog }) => {
             )}
           </div>
         </div>
-
         <div className={detailBoxClasses}>
           <span className="block text-xs uppercase tracking-wider text-gray-400">
             Released
