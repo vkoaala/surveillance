@@ -92,4 +92,7 @@ export const checkUserExists = async () => {
   }
 };
 
+export const markRepositoryUpdatedAPI = (id) =>
+  apiRequest("post", `/repositories/${id}/mark-updated`);
+
 export default api;

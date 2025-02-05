@@ -1,9 +1,8 @@
-// ./frontend/src/components/RepoList.jsx
-
 import { useMemo, useState } from "react";
 import ConfirmBox from "@/components/ui/ConfirmBox";
 import EditRepoModal from "@/components/modals/EditRepoModal";
 import RepoCard from "@/components/ui/RepoCard";
+import { markRepositoryUpdatedAPI } from "@/config/api";
 
 const RepoList = ({
   repos,
@@ -30,12 +29,19 @@ const RepoList = ({
     });
   }, [repos]);
 
-  // Determine grid classes based on layout prop
-  // For vertical layout, use a single column. For grid layout, use one column on small screens and two on larger.
   const gridClasses =
     layout === "vertical"
       ? "grid grid-cols-1 gap-6 mt-6 items-start"
       : "grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6 items-start";
+
+  const onMarkUpdated = async (repo) => {
+    try {
+      const updatedRepo = await markRepositoryUpdatedAPI(repo.ID);
+      updateRepository(repo.ID, updatedRepo.CurrentVersion);
+    } catch (error) {
+      console.error("Failed to mark repository as updated", error);
+    }
+  };
 
   return (
     <>
@@ -47,6 +53,7 @@ const RepoList = ({
             onDelete={(id) => setConfirming(id)}
             onShowChangelog={(id) => showChangelog(id)}
             onEdit={(repo) => setEditingRepo(repo)}
+            onMarkUpdated={onMarkUpdated}
           />
         ))}
       </div>

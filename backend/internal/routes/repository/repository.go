@@ -46,6 +46,22 @@ func RegisterRepositoryRoutes(e *echo.Group, db *gorm.DB) {
 		return c.JSON(http.StatusCreated, repo)
 	})
 
+	e.POST("/repositories/:id/mark-updated", func(c echo.Context) error {
+		id := c.Param("id")
+		var repo models.Repository
+		if err := db.First(&repo, id).Error; err != nil {
+			utils.Logger.Error("Repository not found: ", err)
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "Repository not found"})
+		}
+		repo.CurrentVersion = repo.LatestRelease
+		repo.NotifiedVersion = repo.LatestRelease
+		if err := db.Save(&repo).Error; err != nil {
+			utils.Logger.Error("Failed to mark repository as updated: ", err)
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to mark repository as updated"})
+		}
+		return c.JSON(http.StatusOK, repo)
+	})
+
 	e.GET("/repositories", func(c echo.Context) error {
 		var repos []models.Repository
 		if err := db.Find(&repos).Error; err != nil {

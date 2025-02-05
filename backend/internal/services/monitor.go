@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
+
 	"surveillance/internal/models"
 	"surveillance/internal/utils"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -52,23 +53,36 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 		emoji = "🟢"
 	}
 	utils.Logger.Infof("%s %s scan started for %d repositories", emoji, scanType, len(repos))
-	updates := []string{}
-	for _, repo := range repos {
-		latestVersion, lastUpdated, changelog := GetLatestReleaseInfo(repo.Name, githubToken)
-		if latestVersion != "" && repo.LatestRelease != latestVersion {
-			updates = append(updates, fmt.Sprintf("%s: %s -> %s", repo.Name, repo.LatestRelease, latestVersion))
-			repo.LatestRelease = latestVersion
-			repo.CurrentVersion = latestVersion
-			repo.LastUpdated = lastUpdated
-			repo.Changelog = changelog
+	notifications := []string{}
+	updated := false
+	for i := range repos {
+		latestVersion, lastUpdated, changelog := GetLatestReleaseInfo(repos[i].Name, githubToken)
+		if latestVersion == "" {
+			continue
+		}
+		if repos[i].CurrentVersion != latestVersion {
+			if repos[i].NotifiedVersion != latestVersion {
+				notifications = append(notifications, fmt.Sprintf("%s: %s -> %s", repos[i].Name, repos[i].CurrentVersion, latestVersion))
+				repos[i].NotifiedVersion = latestVersion
+				updated = true
+			}
+			repos[i].LatestRelease = latestVersion
+			repos[i].LastUpdated = lastUpdated
+			repos[i].Changelog = changelog
 		}
 	}
-	if len(updates) > 0 {
-		if err := db.Save(&repos).Error; err != nil {
-			utils.Logger.Error("❌ Failed to update repositories: ", err)
-			return err
+	if len(notifications) > 0 {
+		if updated {
+			if err := db.Save(&repos).Error; err != nil {
+				utils.Logger.Error("❌ Failed to update repositories: ", err)
+				return err
+			}
 		}
-		utils.Logger.Infof("🔄 Updated repositories:\n%s", formatUpdates(updates))
+		formattedMsg := formatUpdates(notifications)
+		utils.Logger.Infof("🔄 Updated repositories:\n%s", formattedMsg)
+		if err := SendDiscordNotification(db, formattedMsg); err != nil {
+			utils.Logger.Errorf("Failed to send Discord notification: %v", err)
+		}
 	} else {
 		utils.Logger.Info("✅ All repositories are up to date.")
 	}
