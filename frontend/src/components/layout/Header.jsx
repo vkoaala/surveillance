@@ -34,7 +34,7 @@ const Header = ({ showBanner }) => {
 
   return (
     <header className="w-full bg-[var(--color-card)] shadow-md">
-      <div className="mx-auto flex items-center justify-between p-5">
+      <div className="mx-auto flex items-center justify-between px-5 py-1">
         <SurveillanceLogo />
         <nav className="flex items-center space-x-6">
           <Link

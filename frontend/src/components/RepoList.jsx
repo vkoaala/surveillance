@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import ConfirmBox from "@/components/ui/ConfirmBox";
 import EditRepoModal from "@/components/modals/EditRepoModal";
 import RepoCard from "@/components/ui/RepoCard";
 import { markRepositoryUpdatedAPI } from "@/config/api";
@@ -11,7 +10,6 @@ const RepoList = ({
   updateRepository,
   layout,
 }) => {
-  const [confirming, setConfirming] = useState(null);
   const [editingRepo, setEditingRepo] = useState(null);
 
   const sortedRepos = useMemo(() => {
@@ -43,6 +41,10 @@ const RepoList = ({
     }
   };
 
+  const handleDelete = (repoId) => {
+    deleteRepo(repoId);
+  };
+
   return (
     <>
       <div className={gridClasses}>
@@ -50,23 +52,13 @@ const RepoList = ({
           <RepoCard
             key={`${repo.ID}-${index}`}
             repo={repo}
-            onDelete={(id) => setConfirming(id)}
+            onDelete={handleDelete} // Pass handleDelete directly
             onShowChangelog={(id) => showChangelog(id)}
             onEdit={(repo) => setEditingRepo(repo)}
             onMarkUpdated={onMarkUpdated}
           />
         ))}
       </div>
-      {confirming && (
-        <ConfirmBox
-          message="Are you sure you want to delete this repository?"
-          onConfirm={() => {
-            deleteRepo(confirming);
-            setConfirming(null);
-          }}
-          onCancel={() => setConfirming(null)}
-        />
-      )}
       {editingRepo && (
         <EditRepoModal
           repo={editingRepo}

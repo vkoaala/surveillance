@@ -1,10 +1,9 @@
 package notifications
 
 import (
-	"bytes"
-	"encoding/json"
 	"net/http"
 	"surveillance/internal/models"
+	"surveillance/internal/services"
 
 	"github.com/labstack/echo/v4"
 	"gorm.io/gorm"
@@ -57,29 +56,11 @@ func RegisterNotificationRoutes(r *echo.Group, db *gorm.DB) {
 		if settings.WebhookURL == "" {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Webhook URL is not set"})
 		}
-		payload := map[string]interface{}{
-			"username":   settings.DiscordName,
-			"avatar_url": settings.DiscordAvatar,
-			"content":    settings.NotificationMessage + " (Test notification)",
+
+		if err := services.SendTestDiscordNotification(db); err != nil {
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Test notification failed"})
 		}
-		jsonPayload, err := json.Marshal(payload)
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create payload"})
-		}
-		req, err := http.NewRequest("POST", settings.WebhookURL, bytes.NewBuffer(jsonPayload))
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create request"})
-		}
-		req.Header.Set("Content-Type", "application/json")
-		client := http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to send request"})
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-			return c.JSON(http.StatusOK, map[string]string{"message": "Test notification sent"})
-		}
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Test notification failed"})
+
+		return c.JSON(http.StatusOK, map[string]string{"message": "Test notification sent"})
 	})
 }
