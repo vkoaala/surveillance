@@ -64,6 +64,11 @@ func SendDiscordNotification(db *gorm.DB, updateDetails string, scanType string)
 
 	currentTime := time.Now().Format("Today at 3:04 PM")
 
+	discordName := settings.DiscordName
+	if discordName == "" {
+		discordName = "Surveillance Bot"
+	}
+
 	embed := Embed{
 		Title:       "Repository Updates Available",
 		Color:       3447003,
@@ -78,7 +83,7 @@ func SendDiscordNotification(db *gorm.DB, updateDetails string, scanType string)
 	}
 
 	payload := Payload{
-		Username:  settings.DiscordName,
+		Username:  discordName,
 		AvatarURL: settings.DiscordAvatar,
 		Content:   ping,
 		Embeds:    []Embed{embed},
@@ -154,6 +159,11 @@ func SendTestDiscordNotification(db *gorm.DB) error {
 
 	currentTime := time.Now().Format("Today at 3:04 PM")
 
+	discordName := settings.DiscordName
+	if discordName == "" {
+		discordName = "Surveillance Bot"
+	}
+
 	ping := ""
 	switch settings.PingType {
 	case "@everyone":
@@ -176,7 +186,7 @@ func SendTestDiscordNotification(db *gorm.DB) error {
 	}
 
 	payload := Payload{
-		Username:  settings.DiscordName,
+		Username:  discordName,
 		AvatarURL: settings.DiscordAvatar,
 		Content:   ping,
 		Embeds:    []Embed{embed},

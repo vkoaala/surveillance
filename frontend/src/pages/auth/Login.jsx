@@ -12,7 +12,7 @@ const Login = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        if (sessionStorage.getItem("token")) {
+        if (localStorage.getItem("token")) {
             navigate("/");
         }
     }, [navigate]);
@@ -44,7 +44,7 @@ const Login = () => {
                 username: formData.username.trim(),
                 password: formData.password.trim(),
             });
-            sessionStorage.setItem("token", data.token);
+            localStorage.setItem("token", data.token);
             navigate("/");
         } catch (error) {
             showToast("error", error.message || "Login failed.");

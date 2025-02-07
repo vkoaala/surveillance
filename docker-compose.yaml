@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - JWT_SECRET=YOUR_SUPER_SECRET_JWT_KEY # Replace!  Generate with openssl rand -base64 32
+      - TIMEZONE=America/New_York # Or your preferred timezone.
+    volumes:
+      - ./testing/db:/app/db # Mount for development database (OPTIONAL)

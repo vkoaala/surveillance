@@ -13,9 +13,15 @@ import (
 )
 
 var derivedKey []byte
+var saltValue string
 
 func SetEncryptionParameters(secret, salt string) {
 	derivedKey = pbkdf2.Key([]byte(secret), []byte(salt), 10000, 32, sha256.New)
+	saltValue = salt
+}
+
+func GetSalt() string {
+	return saltValue
 }
 
 func GenerateRandomSalt(length int) (string, error) {

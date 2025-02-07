@@ -1,14 +1,17 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8080",
   headers: { "Content-Type": "application/json" },
 });
 
 api.interceptors.request.use(
   (config) => {
-    const token = sessionStorage.getItem("token");
-    if (token) config.headers["Authorization"] = `Bearer ${token}`;
+    if (!config.url.startsWith("/auth/")) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+    }
     return config;
   },
   (error) => Promise.reject(error),
@@ -41,32 +44,34 @@ const apiRequest = async (method, url, data = null) => {
   }
 };
 
-export const fetchSettings = () => apiRequest("get", "/settings");
+export const fetchSettings = () => apiRequest("get", "/api/settings");
 export const updateSettings = (settings) =>
-  apiRequest("post", "/settings", settings);
+  apiRequest("post", "/api/settings", settings);
 
-export const fetchRepositories = () => apiRequest("get", "/repositories");
+export const fetchRepositories = () => apiRequest("get", "/api/repositories");
 export const addRepositoryAPI = (repo) =>
-  apiRequest("post", "/repositories", repo);
+  apiRequest("post", "/api/repositories", repo);
 export const deleteRepositoryAPI = (id) =>
-  apiRequest("delete", `/repositories/${id}`);
+  apiRequest("delete", `/api/repositories/${id}`);
 export const updateRepositoryAPI = (id, updatedFields) =>
-  apiRequest("patch", `/repositories/${id}`, updatedFields);
-export const scanUpdatesAPI = () => apiRequest("post", "/scan-updates");
+  apiRequest("patch", `/api/repositories/${id}`, updatedFields);
+export const scanUpdatesAPI = () => apiRequest("post", "/api/scan-updates");
 export const fetchChangelog = (id) =>
-  apiRequest("get", `/repositories/${id}/changelog`);
-export const fetchScanStatus = () => apiRequest("get", "/scan-status");
+  apiRequest("get", `/api/repositories/${id}/changelog`);
+export const fetchScanStatus = () => apiRequest("get", "/api/scan-status");
 
 export const validateApiKey = async (apiKey) => {
   const result = await apiRequest("post", "/api/validate-key", { apiKey });
   return result?.message === "GitHub API key is valid";
 };
 
-export const fetchNotifications = () => apiRequest("get", "/notifications");
+export const fetchNotifications = () => apiRequest("get", "/api/notifications");
 export const updateNotifications = (settings) =>
-  apiRequest("post", "/notifications", settings);
+  apiRequest("post", "/api/notifications", settings);
 export const testNotificationAPI = () =>
-  apiRequest("post", "/notifications/test");
+  apiRequest("post", "/api/notifications/test");
+export const markRepositoryUpdatedAPI = (id) =>
+  apiRequest("post", `/api/repositories/${id}/mark-updated`);
 
 export const loginUser = (credentials) =>
   apiRequest("post", "/auth/login", credentials);
@@ -80,7 +85,5 @@ export const checkUserExists = async () => {
     return false;
   }
 };
-export const markRepositoryUpdatedAPI = (id) =>
-  apiRequest("post", `/repositories/${id}/mark-updated`);
 
 export default api;

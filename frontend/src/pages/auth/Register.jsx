@@ -13,21 +13,16 @@ const Register = () => {
     });
     const [toast, setToast] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
-    const [policy, setPolicy] = useState({ pattern: "", description: "" });
     const navigate = useNavigate();
 
+    const policy = {
+        pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{12,}$",
+        description:
+            "Password must be at least 12 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
+    };
+
     useEffect(() => {
-        if (sessionStorage.getItem("token")) navigate("/");
-        fetch("/api/password-policy")
-            .then((res) => res.json())
-            .then((data) => setPolicy(data))
-            .catch(() =>
-                setPolicy({
-                    pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{12,}$",
-                    description:
-                        "Password must be at least 12 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
-                }),
-            );
+        if (localStorage.getItem("token")) navigate("/");
     }, [navigate]);
 
     const showToast = (type, message) => {

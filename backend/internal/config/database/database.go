@@ -10,7 +10,8 @@ import (
 )
 
 func InitDB() *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("./db/sqlite.db"), &gorm.Config{
+	dbPath := "./db/sqlite.db"
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Error),
 	})
 	if err != nil {

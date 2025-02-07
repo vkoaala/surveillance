@@ -31,7 +31,7 @@ const AppContent = () => {
   };
 
   useEffect(() => {
-    const token = sessionStorage.getItem("token");
+    const token = localStorage.getItem("token");
     const checkUserStatus = async () => {
       try {
         const exists = await checkUserExists();

@@ -28,11 +28,11 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *cron
 		log.Fatal("JWT_SECRET is not set in environment variables")
 	}
 
-	protected := e.Group("")
+	protected := e.Group("/api")
 	protected.Use(echojwt.WithConfig(echojwt.Config{
 		SigningKey: []byte(jwtSecret),
 		Skipper: func(c echo.Context) bool {
-			if c.Path() == "/settings" && c.Request().Method == http.MethodGet {
+			if c.Path() == "/api/settings" && c.Request().Method == http.MethodGet {
 				return true
 			}
 			return false
@@ -47,7 +47,11 @@ func RegisterRoutes(e *echo.Echo, db *gorm.DB, scheduler *cron.Cron, jobID *cron
 	settings.RegisterSettingsRoutes(protected, db, scheduler, jobID)
 	notifications.RegisterNotificationRoutes(protected, db)
 	scan.RegisterScanRoutes(protected, db)
-	protected.GET("/api/validate-key", func(c echo.Context) error {
+	protected.GET("/validate-key", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{"message": "GitHub API key is valid"})
+	})
+
+	e.GET("/*", func(c echo.Context) error {
+		return c.File("./frontend/index.html")
 	})
 }

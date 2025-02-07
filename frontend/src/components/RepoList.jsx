@@ -35,7 +35,9 @@ const RepoList = ({
   const onMarkUpdated = async (repo) => {
     try {
       const updatedRepo = await markRepositoryUpdatedAPI(repo.ID);
-      updateRepository(repo.ID, updatedRepo.CurrentVersion);
+      setRepos((prevRepos) =>
+        prevRepos.map((r) => (r.ID === repo.ID ? updatedRepo : r)),
+      );
     } catch (error) {
       console.error("Failed to mark repository as updated", error);
     }
@@ -52,7 +54,7 @@ const RepoList = ({
           <RepoCard
             key={`${repo.ID}-${index}`}
             repo={repo}
-            onDelete={handleDelete} // Pass handleDelete directly
+            onDelete={handleDelete}
             onShowChangelog={(id) => showChangelog(id)}
             onEdit={(repo) => setEditingRepo(repo)}
             onMarkUpdated={onMarkUpdated}
