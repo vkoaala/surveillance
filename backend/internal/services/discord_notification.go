@@ -42,7 +42,16 @@ func SendDiscordNotification(db *gorm.DB, updateDetails string, scanType string)
 	type Payload struct {
 		Username  string  `json:"username"`
 		AvatarURL string  `json:"avatar_url,omitempty"`
+		Content   string  `json:"content"`
 		Embeds    []Embed `json:"embeds"`
+	}
+
+	ping := ""
+	switch settings.PingType {
+	case "@everyone":
+		ping = "@everyone "
+	case "@here":
+		ping = "@here "
 	}
 
 	embed := Embed{
@@ -61,6 +70,7 @@ func SendDiscordNotification(db *gorm.DB, updateDetails string, scanType string)
 	payload := Payload{
 		Username:  settings.DiscordName,
 		AvatarURL: settings.DiscordAvatar,
+		Content:   ping,
 		Embeds:    []Embed{embed},
 	}
 
@@ -125,10 +135,19 @@ func SendTestDiscordNotification(db *gorm.DB) error {
 	type Payload struct {
 		Username  string  `json:"username"`
 		AvatarURL string  `json:"avatar_url,omitempty"`
+		Content   string  `json:"content"`
 		Embeds    []Embed `json:"embeds"`
 	}
 
 	exampleUpdates := "• [Example/Repo1](https://github.com/example/repo1): `v1.0.0` → `v1.1.0`\n• [Another/Repo2](https://github.com/another/repo2): `v2.2.2` → `v2.3.0`"
+
+	ping := ""
+	switch settings.PingType {
+	case "@everyone":
+		ping = "@everyone "
+	case "@here":
+		ping = "@here "
+	}
 
 	embed := Embed{
 		Title: "Repository Updates Available",
@@ -146,6 +165,7 @@ func SendTestDiscordNotification(db *gorm.DB) error {
 	payload := Payload{
 		Username:  settings.DiscordName,
 		AvatarURL: settings.DiscordAvatar,
+		Content:   ping,
 		Embeds:    []Embed{embed},
 	}
 	jsonPayload, err := json.Marshal(payload)

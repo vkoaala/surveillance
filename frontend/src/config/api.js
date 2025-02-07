@@ -42,26 +42,19 @@ const apiRequest = async (method, url, data = null) => {
 };
 
 export const fetchSettings = () => apiRequest("get", "/settings");
-
 export const updateSettings = (settings) =>
   apiRequest("post", "/settings", settings);
 
 export const fetchRepositories = () => apiRequest("get", "/repositories");
-
 export const addRepositoryAPI = (repo) =>
   apiRequest("post", "/repositories", repo);
-
 export const deleteRepositoryAPI = (id) =>
   apiRequest("delete", `/repositories/${id}`);
-
 export const updateRepositoryAPI = (id, updatedFields) =>
   apiRequest("patch", `/repositories/${id}`, updatedFields);
-
 export const scanUpdatesAPI = () => apiRequest("post", "/scan-updates");
-
 export const fetchChangelog = (id) =>
   apiRequest("get", `/repositories/${id}/changelog`);
-
 export const fetchScanStatus = () => apiRequest("get", "/scan-status");
 
 export const validateApiKey = async (apiKey) => {
@@ -70,19 +63,15 @@ export const validateApiKey = async (apiKey) => {
 };
 
 export const fetchNotifications = () => apiRequest("get", "/notifications");
-
 export const updateNotifications = (settings) =>
   apiRequest("post", "/notifications", settings);
-
 export const testNotificationAPI = () =>
   apiRequest("post", "/notifications/test");
 
 export const loginUser = (credentials) =>
   apiRequest("post", "/auth/login", credentials);
-
 export const registerUser = (credentials) =>
   apiRequest("post", "/auth/register", credentials);
-
 export const checkUserExists = async () => {
   try {
     const result = await api.get("/auth/exists");
@@ -91,7 +80,6 @@ export const checkUserExists = async () => {
     return false;
   }
 };
-
 export const markRepositoryUpdatedAPI = (id) =>
   apiRequest("post", `/repositories/${id}/mark-updated`);
 

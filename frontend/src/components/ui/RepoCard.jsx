@@ -87,7 +87,7 @@ const RepoCard = ({
                   <span
                     className={`bg-[var(--color-action-edit)] text-white border border-[var(--color-border)] text-xs font-semibold py-1 px-2 rounded-md shadow-sm tracking-wide`}
                   >
-                    {confirmUpdate ? "Update?" : "Update Available"}
+                    {confirmUpdate ? "Update" : "Update Available"}
                   </span>
                 )}
               </button>

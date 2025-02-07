@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useTheme } from "@/context/ThemeContext";
 import Toast from "@/components/ui/Toast";
+import InputField from "@/components/ui/InputField";
 import {
   FaGithub,
   FaLock,
   FaClock,
   FaPalette,
-  FaChevronDown,
   FaCog,
+  FaChevronDown,
 } from "react-icons/fa";
 import { fetchSettings, updateSettings, validateApiKey } from "@/config/api";
 import cronParser from "cron-parser";
@@ -27,31 +28,37 @@ const Settings = ({ refreshBannerState }) => {
   const [cronSchedule, setCronSchedule] = useState("");
   const [githubApiKey, setGithubApiKey] = useState("");
   const [tempTheme, setTempTheme] = useState("tokyoNight");
-  const [isLocked, setIsLocked] = useState(false);
+  const [isLocked, setIsLocked] = useState(true);
   const [toast, setToast] = useState(null);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [apiKeyType, setApiKeyType] = useState("password");
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await fetchSettings();
+      setCronSchedule(settings.cronSchedule);
+      setTempTheme(settings.theme);
+      if (settings.githubApiKey) {
+        setGithubApiKey("●●●●●●●●");
+        setIsLocked(true);
+        setApiKeyType("password");
+      } else {
+        setGithubApiKey("");
+        setIsLocked(false);
+        setApiKeyType("text");
+      }
+    } catch {
+      setToast({ type: "error", message: "Failed to load settings." });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const settings = await fetchSettings();
-        setCronSchedule(settings.cronSchedule);
-        setTempTheme(settings.theme);
-        if (settings.githubApiKey) {
-          setGithubApiKey("●●●●●●●●");
-          setIsLocked(true);
-        } else {
-          setGithubApiKey("");
-          setIsLocked(false);
-        }
-      } catch {
-        setToast({ type: "error", message: "Failed to load settings." });
-      } finally {
-        setLoading(false);
-      }
-    };
+    setLoading(true);
     loadSettings();
   }, []);
 
@@ -61,18 +68,31 @@ const Settings = ({ refreshBannerState }) => {
   };
 
   const validateGitHubKey = async () => {
-    if (!githubApiKey.trim() || githubApiKey === "●●●●●●●●" || isLocked)
-      return true;
-    try {
-      const isValid = await validateApiKey(githubApiKey.trim());
-      if (isValid) return true;
-    } catch {
-      setErrors((prev) => ({
-        ...prev,
-        githubApiKey: "Invalid GitHub API key.",
-      }));
+    if (
+      !isLocked &&
+      githubApiKey.trim() !== "" &&
+      githubApiKey !== "●●●●●●●●"
+    ) {
+      try {
+        const isValid = await validateApiKey(githubApiKey.trim());
+        if (!isValid) {
+          setErrors((prev) => ({
+            ...prev,
+            githubApiKey: "Invalid GitHub API key.",
+          }));
+          return false;
+        } else {
+          setErrors((prev) => ({ ...prev, githubApiKey: undefined }));
+        }
+      } catch {
+        setErrors((prev) => ({
+          ...prev,
+          githubApiKey: "Error validating GitHub API key.",
+        }));
+        return false;
+      }
     }
-    return false;
+    return true;
   };
 
   const validateForm = () => {
@@ -89,52 +109,59 @@ const Settings = ({ refreshBannerState }) => {
   const handleSaveSettings = async () => {
     if (!validateForm()) return;
     if (!(await validateGitHubKey())) return;
+
     setSaving(true);
     try {
-      let apiKeyToSave = "";
-      if (isLocked) apiKeyToSave = "LOCKED";
-      else if (githubApiKey.trim() === "") apiKeyToSave = "";
-      else if (githubApiKey !== "●●●●●●●●") apiKeyToSave = githubApiKey.trim();
+      let apiKeyToSave;
+      if (isLocked && githubApiKey === "●●●●●●●●") {
+        apiKeyToSave = "";
+      } else if (githubApiKey.trim() === "") {
+        apiKeyToSave = "";
+      } else {
+        apiKeyToSave = githubApiKey;
+      }
 
       await updateSettings({
         cronSchedule,
-        githubApiKey: apiKeyToSave === "LOCKED" ? "" : apiKeyToSave,
+        githubApiKey: apiKeyToSave,
         theme: tempTheme,
       });
-
-      if (apiKeyToSave === "" || apiKeyToSave === "LOCKED") {
-        setGithubApiKey(apiKeyToSave === "" ? "" : "●●●●●●●●");
-        setIsLocked(apiKeyToSave !== "");
-      } else {
-        setGithubApiKey("●●●●●●●●");
-        setIsLocked(true);
-      }
 
       setTheme(tempTheme);
       showToast("success", "Settings saved successfully.");
       setErrors({});
       if (refreshBannerState) await refreshBannerState();
-    } catch {
+
+      await loadSettings();
+    } catch (error) {
+      console.error("Save settings error:", error);
       showToast("error", "Failed to save settings.");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleResetApiKey = async () => {
-    try {
-      await updateSettings({
-        cronSchedule,
-        githubApiKey: "",
-        theme: tempTheme,
-        isReset: true,
-      });
-      setGithubApiKey("");
-      setIsLocked(false);
-      showToast("success", "API key reset successfully.");
-      if (refreshBannerState) await refreshBannerState();
-    } catch {
-      showToast("error", "Failed to reset API key.");
+  const handleResetClick = async () => {
+    if (confirmReset) {
+      try {
+        await updateSettings({
+          cronSchedule,
+          githubApiKey: "",
+          theme: tempTheme,
+          isReset: true,
+        });
+        setGithubApiKey("");
+        setIsLocked(false);
+        setApiKeyType("text");
+        setConfirmReset(false);
+        showToast("success", "API key reset successfully.");
+        if (refreshBannerState) await refreshBannerState();
+      } catch {
+        showToast("error", "Failed to reset API key.");
+      }
+    } else {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 5000);
     }
   };
 
@@ -143,24 +170,25 @@ const Settings = ({ refreshBannerState }) => {
 
   return (
     <div className="container max-w-2xl mx-auto p-6">
-      {" "}
       {toast && <Toast type={toast.type} message={toast.message} />}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-extrabold text-[var(--color-primary)] flex items-center justify-center gap-2">
           <FaCog /> Settings
         </h1>
-        <p className="text-gray-400 mt-2">Manage your configurations.</p>
+        <p className="text-gray-400 text-lg mt-2">
+          Manage your configurations.
+        </p>
       </div>
-      <div className="bg-[var(--color-card)] p-8 shadow-md rounded-lg border border-[var(--color-border)] space-y-6">
-        <div>
+      <div className="bg-[var(--color-card)] rounded-lg shadow-md border border-[var(--color-border)] p-6 sm:p-8">
+        <div className="mb-6">
           <label
             htmlFor="theme"
-            className="block text-sm font-medium text-gray-300 mb-2"
+            className="block text-sm font-medium text-[var(--color-text)] mb-2"
           >
             Theme
           </label>
           <div className="relative">
-            <FaPalette className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <FaPalette className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" />
             <select
               id="theme"
               value={tempTheme}
@@ -171,29 +199,22 @@ const Settings = ({ refreshBannerState }) => {
               <option value="dark">Dark</option>
               <option value="light">Light</option>
             </select>
-            <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] pointer-events-none" />
           </div>
         </div>
 
-        <div>
-          <label
-            htmlFor="cronSchedule"
-            className="block text-sm font-medium text-gray-300 mb-2"
-          >
-            Cron Schedule
-          </label>
-          <div className="relative">
-            <FaClock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              id="cronSchedule"
-              type="text"
-              value={cronSchedule}
-              onChange={(e) => setCronSchedule(e.target.value)}
-              className="w-full h-12 pl-10 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200"
-            />
-          </div>
-          <p className="text-xs text-gray-400 mt-1">
-            Example: <code>0 */12 * * *</code> (runs every 12 hours).{" "}
+        <div className="mb-6">
+          <InputField
+            label="Cron Schedule"
+            icon={FaClock}
+            type="text"
+            name="cronSchedule"
+            value={cronSchedule}
+            onChange={(e) => setCronSchedule(e.target.value)}
+            error={errors.cronSchedule}
+            placeholder="e.g., 0 */12 * * *"
+          />
+          <p className="text-xs text-[var(--color-text-secondary)] ml-3 mt-1">
             <a
               href="https://crontab.guru/"
               target="_blank"
@@ -203,51 +224,61 @@ const Settings = ({ refreshBannerState }) => {
               Cron help
             </a>
           </p>
-          {errors.cronSchedule && (
-            <p className="text-red-500 text-sm mt-1">{errors.cronSchedule}</p>
-          )}
         </div>
 
-        <div>
-          <label
-            htmlFor="githubApiKey"
-            className="block text-sm font-medium text-gray-300 mb-2"
-          >
-            GitHub API Key
-          </label>
-          <div className="relative">
-            {isLocked ? (
-              <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            ) : (
-              <FaGithub className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            )}
-            <input
-              id="githubApiKey"
-              type="password"
-              value={githubApiKey}
-              onChange={(e) => setGithubApiKey(e.target.value)}
-              disabled={isLocked}
-              className="w-full h-12 pl-10 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 disabled:bg-[var(--color-card)] disabled:text-gray-400"
-            />
-          </div>
-          {errors.githubApiKey && (
-            <p className="text-red-500 text-sm mt-1">{errors.githubApiKey}</p>
-          )}
-          {isLocked ? (
+        <div className="mb-6">
+          <InputField
+            label="GitHub API Key"
+            icon={isLocked ? FaLock : FaGithub}
+            type={apiKeyType}
+            name="githubApiKey"
+            value={githubApiKey}
+            onChange={(e) => {
+              if (!isLocked) {
+                setGithubApiKey(e.target.value);
+              }
+            }}
+            disabled={isLocked}
+            error={errors.githubApiKey}
+            placeholder="Enter your GitHub API Key"
+            className={isLocked ? "bg-[var(--color-card)] text-gray-500" : ""}
+          />
+
+          {isLocked && (
             <button
-              onClick={handleResetApiKey}
-              className="mt-2 px-4 py-2 text-sm rounded-md bg-[var(--color-action-delete)] text-white hover:bg-[var(--color-action-delete-hover)] transition-colors duration-200"
+              type="button"
+              onClick={handleResetClick}
+              className="relative overflow-hidden mt-2 px-4 py-2 text-sm rounded-md text-white transition-all duration-300 bg-[var(--color-action-delete)]"
             >
-              Reset API Key
+              <span className="invisible">Reset API Key</span>
+
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span
+                  className={`transition-all duration-300 ${confirmReset
+                      ? "-translate-x-2 opacity-0"
+                      : "translate-x-0 opacity-100"
+                    }`}
+                >
+                  Reset API Key
+                </span>
+                <span
+                  className={`absolute transition-all duration-300 ${confirmReset
+                      ? "translate-x-0 opacity-100"
+                      : "translate-x-2 opacity-0"
+                    }`}
+                >
+                  Confirm Reset
+                </span>
+              </div>
             </button>
-          ) : null}
+          )}
         </div>
 
-        <div className="mt-6">
+        <div className="flex justify-end">
           <button
             onClick={handleSaveSettings}
             disabled={saving}
-            className="w-full px-6 py-3 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold transition-all duration-200 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+            className="px-6 py-2.5 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-medium transition-all duration-200 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-50"
           >
             {saving ? "Saving..." : "Save Settings"}
           </button>

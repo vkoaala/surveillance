@@ -153,7 +153,7 @@ const Dashboard = () => {
             onClick={() => setIsAdding(true)}
             className="flex items-center gap-2 px-6 py-3 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold transition-all duration-200 shadow-md"
           >
-            <FaPlus /> Add Repo
+            <FaPlus /> Add Repository
           </button>
           <button
             onClick={scanForUpdates}
@@ -164,7 +164,7 @@ const Dashboard = () => {
               "Scanning..."
             ) : (
               <>
-                <FaSyncAlt /> Scan
+                <FaSyncAlt /> Scan for update
               </>
             )}
           </button>

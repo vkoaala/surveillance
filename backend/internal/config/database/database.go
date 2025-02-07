@@ -48,10 +48,10 @@ func ensureDefaultNotificationSettings(db *gorm.DB) {
 	db.Model(&models.NotificationSettings{}).Count(&count)
 	if count == 0 {
 		db.Create(&models.NotificationSettings{
-			WebhookURL:          "",
-			DiscordName:         "Surveillance Bot",
-			DiscordAvatar:       "",
-			NotificationMessage: "Surveillance Discord notification: Webhook is working!",
+			WebhookURL:    "",
+			DiscordName:   "Surveillance Bot",
+			DiscordAvatar: "",
+			PingType:      "None",
 		})
 	}
 }

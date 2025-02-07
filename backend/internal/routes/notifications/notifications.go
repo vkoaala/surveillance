@@ -27,10 +27,10 @@ func RegisterNotificationRoutes(r *echo.Group, db *gorm.DB) {
 		var settings models.NotificationSettings
 		if err := db.First(&settings).Error; err != nil {
 			settings = models.NotificationSettings{
-				WebhookURL:          input.WebhookURL,
-				DiscordName:         input.DiscordName,
-				DiscordAvatar:       input.DiscordAvatar,
-				NotificationMessage: input.NotificationMessage,
+				WebhookURL:    input.WebhookURL,
+				DiscordName:   input.DiscordName,
+				DiscordAvatar: input.DiscordAvatar,
+				PingType:      input.PingType,
 			}
 			if err := db.Create(&settings).Error; err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to create settings"})
@@ -39,7 +39,7 @@ func RegisterNotificationRoutes(r *echo.Group, db *gorm.DB) {
 			settings.WebhookURL = input.WebhookURL
 			settings.DiscordName = input.DiscordName
 			settings.DiscordAvatar = input.DiscordAvatar
-			settings.NotificationMessage = input.NotificationMessage
+			settings.PingType = input.PingType
 
 			if err := db.Save(&settings).Error; err != nil {
 				return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to update settings"})
