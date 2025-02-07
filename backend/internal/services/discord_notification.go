@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"surveillance/internal/models"
 	"surveillance/internal/utils"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -34,9 +35,9 @@ func SendDiscordNotification(db *gorm.DB, updateDetails string, scanType string)
 	type Embed struct {
 		Title       string      `json:"title"`
 		Color       int         `json:"color"`
-		Author      EmbedAuthor `json:"author"`
 		Description string      `json:"description"`
 		Footer      EmbedFooter `json:"footer"`
+		Author      EmbedAuthor `json:"author"`
 	}
 
 	type Payload struct {
@@ -54,16 +55,25 @@ func SendDiscordNotification(db *gorm.DB, updateDetails string, scanType string)
 		ping = "@here "
 	}
 
+	scanTypeString := "Scheduled Scan"
+	if scanType == "Manual" {
+		scanTypeString = "Manual Scan"
+	} else if scanType == "Test" {
+		scanTypeString = "Test Scan"
+	}
+
+	currentTime := time.Now().Format("Today at 3:04 PM")
+
 	embed := Embed{
-		Title: "Repository Updates Available",
-		Color: 3447003,
-		Author: EmbedAuthor{
-			Name:    settings.DiscordName,
-			IconURL: settings.DiscordAvatar,
-		},
-		Description: "The following repositories have updates:\n\n" + updateDetails,
+		Title:       "Repository Updates Available",
+		Color:       3447003,
+		Description: updateDetails,
 		Footer: EmbedFooter{
-			Text: fmt.Sprintf("Scan Type: %s", scanType),
+			Text: fmt.Sprintf("%s • %s", scanTypeString, currentTime),
+		},
+		Author: EmbedAuthor{
+			Name:    "Surveillance",
+			IconURL: settings.DiscordAvatar,
 		},
 	}
 
@@ -127,9 +137,9 @@ func SendTestDiscordNotification(db *gorm.DB) error {
 	type Embed struct {
 		Title       string      `json:"title"`
 		Color       int         `json:"color"`
-		Author      EmbedAuthor `json:"author"`
 		Description string      `json:"description"`
 		Footer      EmbedFooter `json:"footer"`
+		Author      EmbedAuthor `json:"author"`
 	}
 
 	type Payload struct {
@@ -139,7 +149,10 @@ func SendTestDiscordNotification(db *gorm.DB) error {
 		Embeds    []Embed `json:"embeds"`
 	}
 
-	exampleUpdates := "• [Example/Repo1](https://github.com/example/repo1): `v1.0.0` → `v1.1.0`\n• [Another/Repo2](https://github.com/another/repo2): `v2.2.2` → `v2.3.0`"
+	exampleUpdates := "- [facebook/react](https://github.com/facebook/react): 2.5.1 → v19.0.0\n"
+	scanTypeString := "Test Scan"
+
+	currentTime := time.Now().Format("Today at 3:04 PM")
 
 	ping := ""
 	switch settings.PingType {
@@ -150,15 +163,15 @@ func SendTestDiscordNotification(db *gorm.DB) error {
 	}
 
 	embed := Embed{
-		Title: "Repository Updates Available",
-		Color: 3447003,
-		Author: EmbedAuthor{
-			Name:    settings.DiscordName,
-			IconURL: settings.DiscordAvatar,
-		},
-		Description: "The following repositories have updates:\n\n" + exampleUpdates,
+		Title:       "Repository Updates Available",
+		Color:       3447003,
+		Description: exampleUpdates,
 		Footer: EmbedFooter{
-			Text: "Scan Type: Test",
+			Text: fmt.Sprintf("%s • %s", scanTypeString, currentTime),
+		},
+		Author: EmbedAuthor{
+			Name:    "Surveillance",
+			IconURL: settings.DiscordAvatar,
 		},
 	}
 

@@ -76,14 +76,12 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 			continue
 		}
 
-		// Use a temporary variable to store the *previous* LatestRelease value
 		previousLatestRelease := repos[i].LatestRelease
 
 		if repos[i].LatestRelease != latestVersion {
 			if repos[i].NotifiedVersion != latestVersion {
-				// Use previousLatestRelease in the notification message.  This is the key change.
-				updates.WriteString(fmt.Sprintf("• [%s](%s): %s → %s\n", repos[i].Name, repos[i].URL, previousLatestRelease, latestVersion))
-				notifications = append(notifications, fmt.Sprintf("• [%s](%s): %s → %s", repos[i].Name, repos[i].URL, previousLatestRelease, latestVersion))
+				updates.WriteString(fmt.Sprintf("- [%s](%s): %s → %s\n", repos[i].Name, repos[i].URL, previousLatestRelease, latestVersion))
+				notifications = append(notifications, fmt.Sprintf("- [%s](%s): %s → %s", repos[i].Name, repos[i].URL, previousLatestRelease, latestVersion))
 				repos[i].NotifiedVersion = latestVersion
 			}
 
@@ -114,7 +112,7 @@ func MonitorRepositories(db *gorm.DB, githubToken, scanType string, isManual boo
 }
 
 func formatUpdates(updates []string) string {
-	return fmt.Sprintf("   %s", stringJoin(updates, "\n   "))
+	return stringJoin(updates, "\n")
 }
 
 func stringJoin(items []string, sep string) string {
