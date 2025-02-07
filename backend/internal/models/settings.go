@@ -4,9 +4,8 @@ import "gorm.io/gorm"
 
 type Settings struct {
 	gorm.Model
-	EncryptionKey string
-	GitHubAPIKey  string
-	CronSchedule  string
-	Theme         string
-	LastScan      string
+	GitHubAPIKey string
+	CronSchedule string
+	Theme        string
+	LastScan     string
 }

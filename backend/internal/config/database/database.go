@@ -16,14 +16,12 @@ func InitDB() *gorm.DB {
 	if err != nil {
 		utils.Logger.Fatal("Failed to connect to the database: ", err)
 	}
-
 	db.AutoMigrate(
 		&models.Settings{},
 		&models.Repository{},
 		&models.NotificationSettings{},
 		&models.User{},
 	)
-
 	ensureDefaultSettings(db)
 	ensureDefaultNotificationSettings(db)
 	return db
@@ -34,11 +32,10 @@ func ensureDefaultSettings(db *gorm.DB) {
 	db.Model(&models.Settings{}).Count(&count)
 	if count == 0 {
 		db.Create(&models.Settings{
-			Theme:         "tokyoNight",
-			CronSchedule:  "0 */12 * * *",
-			GitHubAPIKey:  "",
-			EncryptionKey: utils.GenerateEncryptionKey(),
-			LastScan:      "No scan performed yet",
+			Theme:        "tokyoNight",
+			CronSchedule: "0 */12 * * *",
+			GitHubAPIKey: "",
+			LastScan:     "No scan performed yet",
 		})
 	}
 }

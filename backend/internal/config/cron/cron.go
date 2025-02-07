@@ -1,16 +1,25 @@
 package cron
 
 import (
+	"os"
 	"surveillance/internal/models"
 	"surveillance/internal/services"
 	"surveillance/internal/utils"
+	"time"
 
 	"github.com/robfig/cron/v3"
 	"gorm.io/gorm"
 )
 
 func StartScheduler(db *gorm.DB) (*cron.Cron, cron.EntryID) {
-	scheduler := cron.New()
+
+	timezone := os.Getenv("TIMEZONE")
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		utils.Logger.Fatalf("Invalid TIMEZONE: %v", err)
+	}
+
+	scheduler := cron.New(cron.WithLocation(loc))
 
 	var settings struct {
 		CronSchedule string `gorm:"column:cron_schedule"`
@@ -36,6 +45,7 @@ func StartScheduler(db *gorm.DB) (*cron.Cron, cron.EntryID) {
 	}
 
 	utils.Logger.Infof("Cron job scheduled with ID: %d and schedule: %s", jobID, settings.CronSchedule)
+	utils.Logger.Infof("Cron job timezone: %s", timezone)
 	scheduler.Start()
 	return scheduler, jobID
 }

@@ -55,7 +55,7 @@ func formatLastScan(lastScanStr string) string {
 	if lastScanStr == "" || lastScanStr == "No scan performed yet" {
 		return "No scan performed yet"
 	}
-	lastScan, err := time.Parse(layout, lastScanStr)
+	lastScan, err := time.ParseInLocation(layout, lastScanStr, time.Local)
 	if err != nil {
 		return lastScanStr
 	}

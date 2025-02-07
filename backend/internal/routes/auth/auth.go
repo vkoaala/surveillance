@@ -2,12 +2,12 @@ package auth
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"time"
 	"unicode"
 
 	"surveillance/internal/models"
-	"surveillance/internal/utils"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/labstack/echo/v4"
@@ -15,15 +15,11 @@ import (
 	"gorm.io/gorm"
 )
 
-var jwtSecret = []byte("mysecretkey")
-var passwordPolicyRegex = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{12,}$"
-var passwordPolicyDescription = "Password must be at least 12 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character."
-
 func RegisterPasswordPolicyRoute(e *echo.Echo) {
 	e.GET("/api/password-policy", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{
-			"pattern":     passwordPolicyRegex,
-			"description": passwordPolicyDescription,
+			"pattern":     "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{12,}$",
+			"description": "Password must be at least 12 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
 		})
 	})
 }
@@ -34,7 +30,8 @@ func generateJWT(user models.User) (string, error) {
 		"exp":     time.Now().Add(72 * time.Hour).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString(jwtSecret)
+	jwtSecret := os.Getenv("JWT_SECRET")
+	return token.SignedString([]byte(jwtSecret))
 }
 
 func sendErrorResponse(c echo.Context, status int, message string) error {
@@ -69,22 +66,27 @@ func RegisterAuthRoutes(e *echo.Echo, db *gorm.DB) {
 		}
 		if err := c.Bind(&input); err != nil {
 			return sendErrorResponse(c, http.StatusBadRequest, "Invalid request payload")
+
 		}
 		if strings.TrimSpace(input.Username) == "" || strings.TrimSpace(input.Password) == "" {
 			return sendErrorResponse(c, http.StatusBadRequest, "Username and password cannot be empty.")
+
 		}
 		if !checkPasswordStrength(input.Password) {
 			return sendErrorResponse(c, http.StatusBadRequest, "Password does not meet the strength requirements.")
+
 		}
 		var count int64
 		db.Model(&models.User{}).Where("username = ?", input.Username).Count(&count)
 		if count > 0 {
 			return sendErrorResponse(c, http.StatusConflict, "User already exists.")
+
 		}
 		hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 		user := models.User{Username: input.Username, Password: string(hashedPassword)}
 		db.Create(&user)
 		return c.JSON(http.StatusCreated, map[string]string{"message": "User registered successfully"})
+
 	})
 
 	e.POST("/auth/login", func(c echo.Context) error {
@@ -102,16 +104,13 @@ func RegisterAuthRoutes(e *echo.Echo, db *gorm.DB) {
 		}
 		var user models.User
 		if err := db.Where("username = ?", input.Username).First(&user).Error; err != nil {
-			utils.Logger.Warn("Login failed for non-existing user:", input.Username)
 			return sendErrorResponse(c, http.StatusUnauthorized, "Invalid username or password.")
 		}
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
-			utils.Logger.Warnf("Password mismatch for user: %s", input.Username)
 			return sendErrorResponse(c, http.StatusUnauthorized, "Invalid username or password.")
 		}
 		token, err := generateJWT(user)
 		if err != nil {
-			utils.Logger.Error("Failed to generate JWT:", err)
 			return sendErrorResponse(c, http.StatusInternalServerError, "Internal server error.")
 		}
 		return c.JSON(http.StatusOK, map[string]string{"token": token, "message": "Login successful."})
