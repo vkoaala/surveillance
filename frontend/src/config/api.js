@@ -1,6 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "",
   headers: { "Content-Type": "application/json" },
 });
 
@@ -47,7 +48,6 @@ const apiRequest = async (method, url, data = null) => {
 export const fetchSettings = () => apiRequest("get", "/api/settings");
 export const updateSettings = (settings) =>
   apiRequest("post", "/api/settings", settings);
-
 export const fetchRepositories = () => apiRequest("get", "/api/repositories");
 export const addRepositoryAPI = (repo) =>
   apiRequest("post", "/api/repositories", repo);
@@ -59,12 +59,10 @@ export const scanUpdatesAPI = () => apiRequest("post", "/api/scan-updates");
 export const fetchChangelog = (id) =>
   apiRequest("get", `/api/repositories/${id}/changelog`);
 export const fetchScanStatus = () => apiRequest("get", "/api/scan-status");
-
 export const validateApiKey = async (apiKey) => {
   const result = await apiRequest("post", "/api/validate-key", { apiKey });
   return result?.message === "GitHub API key is valid";
 };
-
 export const fetchNotifications = () => apiRequest("get", "/api/notifications");
 export const updateNotifications = (settings) =>
   apiRequest("post", "/api/notifications", settings);
@@ -72,7 +70,6 @@ export const testNotificationAPI = () =>
   apiRequest("post", "/api/notifications/test");
 export const markRepositoryUpdatedAPI = (id) =>
   apiRequest("post", `/api/repositories/${id}/mark-updated`);
-
 export const loginUser = (credentials) =>
   apiRequest("post", "/auth/login", credentials);
 export const registerUser = (credentials) =>

@@ -1,0 +1,2832 @@
+
+### ./src/components/modals/EditRepoModal.jsx ###
+
+import { useState, useEffect, useRef } from "react";
+import { FaTag, FaTimes } from "react-icons/fa";
+
+const InputField = ({
+  label,
+  icon: Icon,
+  value,
+  onChange,
+  placeholder,
+  error,
+  name,
+}) => (
+  <div className="mb-4">
+    <label
+      htmlFor={name}
+      className="block text-sm font-medium text-gray-300 mb-2"
+    >
+      {label}
+    </label>
+    <div className="relative">
+      {Icon && (
+        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+          <Icon className="text-gray-400" />
+        </span>
+      )}
+      <input
+        type="text"
+        id={name}
+        name={name}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={`w-full h-12 pl-10 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border ${error ? "border-red-500" : "border-[var(--color-border)]"
+          } focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 placeholder-gray-400`}
+        required
+        aria-describedby={`${name}-error`}
+      />
+    </div>
+    {error && (
+      <p id={`${name}-error`} className="text-red-500 text-sm mt-1">
+        {error}
+      </p>
+    )}
+  </div>
+);
+
+const EditRepoModal = ({ repo, closeModal, updateRepository }) => {
+  const [currentVersion, setCurrentVersion] = useState(
+    repo.CurrentVersion || "",
+  );
+  const [error, setError] = useState("");
+  const modalRef = useRef(null);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setError(""); // Clear previous errors
+    const newVersion =
+      currentVersion.trim() === "" ? "latest" : currentVersion.trim();
+
+    if (!newVersion) {
+      setError("Version cannot be empty");
+      return;
+    }
+
+    try {
+      await updateRepository(repo.ID, newVersion);
+      closeModal();
+    } catch (err) {
+      setError(err.response?.data?.error || "Failed to update repository.");
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        closeModal();
+      }
+    };
+
+    const handleClickOutside = (e) => {
+      if (modalRef.current && !modalRef.current.contains(e.target)) {
+        closeModal();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [closeModal]);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+      <div
+        ref={modalRef}
+        className="bg-[var(--color-card)] p-8 rounded-lg shadow-lg border border-[var(--color-border)] w-full max-w-md"
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold text-[var(--color-primary)]">
+            Edit Version
+          </h2>
+          <button
+            onClick={closeModal}
+            className="text-gray-500 hover:text-gray-700 transition-colors duration-200"
+            aria-label="Close"
+          >
+            <FaTimes className="text-2xl" />
+          </button>
+        </div>
+        <form onSubmit={handleSave} className="space-y-6">
+          <InputField
+            label="Version"
+            icon={FaTag}
+            name="currentVersion"
+            value={currentVersion}
+            onChange={(e) => setCurrentVersion(e.target.value)}
+            placeholder="Enter new version"
+            error={error}
+          />
+          <div className="flex justify-end gap-4">
+            <button
+              type="submit"
+              className="px-6 py-3 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold transition-all duration-200 shadow-md"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={closeModal}
+              className="px-6 py-3 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-bold transition-all duration-200 shadow-md"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default EditRepoModal;
+
+### ./src/components/modals/NotificationForm.jsx ###
+
+import { useReducer, useCallback } from "react";
+import {
+  FaLink,
+  FaUser,
+  FaCamera,
+  FaChevronDown,
+  FaTags,
+} from "react-icons/fa";
+import InputField from "@/components/ui/InputField";
+import AvatarPreview from "@/components/ui/AvatarPreview";
+
+const validateWebhookUrl = (url) =>
+  /^https:\/\/discord\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(url);
+const validateAvatarUrl = (url) =>
+  url === "" || /\.(jpg|jpeg|png|gif|webp)$/.test(url);
+
+const formReducer = (state, action) => {
+  switch (action.type) {
+    case "SET_FIELD":
+      return { ...state, [action.field]: action.value };
+    case "SET_ERRORS":
+      return { ...state, errors: action.errors };
+    case "SET_LOADING":
+      return { ...state, loading: action.loading };
+    case "SET_TESTING":
+      return { ...state, testing: action.testing };
+    default:
+      return state;
+  }
+};
+
+const NotificationForm = ({ initialSettings = {}, onSave, onTest }) => {
+  const [state, dispatch] = useReducer(formReducer, {
+    webhookUrl: initialSettings.webhookUrl || "",
+    discordName: initialSettings.discordName || "",
+    discordAvatar: initialSettings.discordAvatar || "",
+    mentionType: initialSettings.pingType || "None",
+    errors: {},
+    loading: false,
+    testing: false,
+  });
+
+  const handleInputChange = useCallback(
+    (e) => {
+      const { name, value } = e.target;
+      dispatch({ type: "SET_FIELD", field: name, value });
+      dispatch({
+        type: "SET_ERRORS",
+        errors: { ...state.errors, [name]: null },
+      });
+    },
+    [state.errors],
+  );
+
+  const validateForm = useCallback(() => {
+    const errors = {};
+    if (!validateWebhookUrl(state.webhookUrl)) {
+      errors.webhookUrl = "Invalid Discord webhook URL format.";
+    }
+    if (state.discordAvatar && !validateAvatarUrl(state.discordAvatar)) {
+      errors.discordAvatar = "Invalid image URL.";
+    }
+    dispatch({ type: "SET_ERRORS", errors });
+    return Object.keys(errors).length === 0;
+  }, [state.webhookUrl, state.discordAvatar]);
+
+  const handleSave = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!validateForm()) return;
+      dispatch({ type: "SET_LOADING", loading: true });
+      try {
+        await onSave({
+          webhookUrl: state.webhookUrl,
+          discordName: state.discordName,
+          discordAvatar: state.discordAvatar,
+          pingType: state.mentionType,
+        });
+      } finally {
+        dispatch({ type: "SET_LOADING", loading: false });
+      }
+    },
+    [
+      state.webhookUrl,
+      state.discordName,
+      state.discordAvatar,
+      state.mentionType,
+      onSave,
+      validateForm,
+    ],
+  );
+
+  const handleTest = useCallback(
+    async (e) => {
+      e.preventDefault();
+      if (!validateWebhookUrl(state.webhookUrl)) {
+        onTest(false, "Set a valid webhook URL first.");
+        return;
+      }
+      dispatch({ type: "SET_TESTING", testing: true });
+      try {
+        await onTest(true, "");
+      } finally {
+        dispatch({ type: "SET_TESTING", testing: false });
+      }
+    },
+    [state.webhookUrl, onTest],
+  );
+  return (
+    <form onSubmit={handleSave} className="space-y-6">
+      <InputField
+        label="Webhook URL"
+        icon={FaLink}
+        name="webhookUrl"
+        value={state.webhookUrl}
+        onChange={handleInputChange}
+        placeholder="Enter Discord Webhook URL"
+        error={state.errors.webhookUrl}
+      />
+      <InputField
+        label="Bot Name"
+        icon={FaUser}
+        name="discordName"
+        value={state.discordName}
+        onChange={handleInputChange}
+        placeholder="Enter bot name"
+      />
+      <InputField
+        label="Avatar URL"
+        icon={FaCamera}
+        name="discordAvatar"
+        value={state.discordAvatar}
+        onChange={handleInputChange}
+        placeholder="Enter avatar URL (optional)"
+        error={state.errors.discordAvatar}
+      />
+      <AvatarPreview
+        url={state.discordAvatar}
+        isValid={validateAvatarUrl(state.discordAvatar)}
+      />
+
+      <div className="mt-2">
+        <label
+          htmlFor="mentionType"
+          className="block text-sm font-medium text-[var(--color-text)] mb-1"
+        >
+          Notification Ping
+        </label>
+        <div className="relative">
+          <FaTags className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+          <select
+            id="mentionType"
+            name="mentionType"
+            value={state.mentionType}
+            onChange={handleInputChange}
+            className="w-full h-12 pl-10 pr-8 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none appearance-none transition-all duration-200"
+          >
+            <option value="None">None</option>
+            <option value="@everyone">@everyone</option>
+            <option value="@here">@here</option>
+          </select>
+          <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] pointer-events-none" />
+        </div>
+      </div>
+
+      <div className="mt-6 flex justify-end gap-4">
+        <button
+          type="button"
+          onClick={handleTest}
+          disabled={state.testing}
+          className="px-6 py-2.5 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-medium transition-all duration-200 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
+        >
+          {state.testing ? "Testing..." : "Test Notification"}
+        </button>
+        <button
+          type="submit"
+          disabled={state.loading}
+          className="px-6 py-2.5 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-medium transition-all duration-200 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-50"
+        >
+          {state.loading ? "Saving..." : "Save Settings"}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default NotificationForm;
+
+### ./src/components/modals/AddRepoModal.jsx ###
+
+import { useState, useCallback, useEffect } from "react";
+import { FaGithub, FaTag } from "react-icons/fa";
+
+const AddRepoModal = ({ addRepository, existingRepos = [], setIsAdding }) => {
+  const [newRepo, setNewRepo] = useState("");
+  const [currentVersion, setCurrentVersion] = useState("");
+  const [repoError, setRepoError] = useState("");
+  const [versionError, setVersionError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAddRepo = useCallback(async () => {
+    setRepoError("");
+    setVersionError("");
+    setIsLoading(true);
+
+    let validRepoUrl = validateRepoInput(newRepo);
+    if (!validRepoUrl) {
+      setRepoError("Please enter a valid GitHub repository URL or owner/repo.");
+      setIsLoading(false);
+      return;
+    }
+
+    validRepoUrl = validRepoUrl.replace(
+      /^(https:\/\/(?:www\.)?github\.com\/[\w-]+\/[\w.-]+)(?:\/.*)?$/,
+      "$1",
+    );
+
+    const alreadyPresent = existingRepos.some(
+      (r) => (r.URL || "").toLowerCase() === validRepoUrl.toLowerCase(),
+    );
+    if (alreadyPresent) {
+      setRepoError("Repository is already present.");
+      setIsLoading(false);
+      return;
+    }
+
+    const match = validRepoUrl.match(
+      /https:\/\/github\.com\/([\w-]+\/[\w.-]+)/,
+    );
+    if (!match || match.length < 2) {
+      setRepoError("Invalid repository URL format.");
+      setIsLoading(false);
+      return;
+    }
+    const name = match[1];
+
+    if (
+      currentVersion.trim() !== "" &&
+      !/^v?\d+(\.\d+)*(-[\w.]*)?$/.test(currentVersion.trim())
+    ) {
+      setVersionError("Invalid version format.");
+      setIsLoading(false);
+      return;
+    }
+
+    const payload = {
+      url: validRepoUrl,
+      name: name,
+      version: currentVersion.trim() || "latest",
+    };
+
+    try {
+      await addRepository(payload);
+      setNewRepo("");
+      setCurrentVersion("");
+      setIsAdding(false);
+    } catch (err) {
+      const msg = err.response?.data?.error || "Failed to add repository.";
+      setRepoError(msg); // Generic error to repo field.  Could improve.
+    } finally {
+      setIsLoading(false);
+    }
+  }, [newRepo, currentVersion, existingRepos, addRepository, setIsAdding]);
+
+  const validateRepoInput = (input) => {
+    const trimmed = input.trim();
+    const repoPattern = /^[\w-]+\/[\w.-]+$/;
+    const fullUrlPattern =
+      /^(https:\/\/)?(www\.)?github\.com\/([\w-]+\/[\w.-]+)(\/.*)?$/;
+
+    if (fullUrlPattern.test(trimmed)) {
+      return trimmed.startsWith("http")
+        ? trimmed
+        : `https://${trimmed.replace(/^www\./, "")}`;
+    } else if (repoPattern.test(trimmed)) {
+      return `https://github.com/${trimmed}`;
+    }
+    return null;
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Enter") {
+        handleAddRepo();
+      }
+      if (e.key === "Escape") {
+        setIsAdding(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleAddRepo, setIsAdding]);
+
+  return (
+    <div className="w-full bg-[var(--color-card)] p-4 rounded-lg shadow-sm border border-[var(--color-border)] transition-all duration-200 ease-in-out">
+      <div className="flex flex-col gap-4">
+        <div className="relative">
+          <FaGithub className="absolute left-3 top-3 text-gray-500" />
+          <input
+            type="text"
+            placeholder="GitHub Repository (owner/repo or URL)"
+            value={newRepo}
+            onChange={(e) => {
+              setNewRepo(e.target.value);
+              setRepoError("");
+            }}
+            className={`w-full py-2 pl-10 pr-4 text-sm rounded-md bg-[var(--color-bg)] text-[var(--color-text)] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent ${repoError ? "border border-red-500" : ""}`}
+          />
+          {repoError && (
+            <p className="mt-1 text-red-500 text-xs">{repoError}</p>
+          )}
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center md:items-start gap-4">
+          <div className="relative flex-1 w-full">
+            <FaTag className="absolute left-3 top-3 text-gray-500" />
+            <input
+              type="text"
+              placeholder="Version (or leave blank for latest)"
+              value={currentVersion}
+              onChange={(e) => {
+                setCurrentVersion(e.target.value);
+                setVersionError("");
+              }}
+              className="w-full py-2 pl-10 pr-4 text-sm rounded-md bg-[var(--color-bg)] text-[var(--color-text)] placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:border-transparent"
+            />
+            {versionError && (
+              <p className="mt-1 text-red-500 text-xs">{versionError}</p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setIsAdding(false)}
+              className="px-5 py-2 text-sm font-medium text-gray-300 bg-[var(--color-bg)] rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-50 transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAddRepo}
+              disabled={isLoading}
+              className={`px-5 py-2 text-sm font-medium rounded-md transition  ${isLoading
+                  ? "bg-gray-500 text-gray-300 cursor-not-allowed"
+                  : "bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-50"
+                }`}
+            >
+              {isLoading ? "Adding..." : "Add Repository"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AddRepoModal;
+
+### ./src/components/PrivateRoute.jsx ###
+
+import { Navigate } from "react-router-dom";
+const PrivateRoute = ({ children }) => {
+  const token = localStorage.getItem("token");
+  return token ? children : <Navigate to="/login" replace />;
+};
+export default PrivateRoute;
+
+### ./src/components/RepoList.jsx ###
+
+import { useMemo, useState } from "react";
+import EditRepoModal from "@/components/modals/EditRepoModal";
+import RepoCard from "@/components/ui/RepoCard";
+import { markRepositoryUpdatedAPI } from "@/config/api";
+
+const RepoList = ({
+  repos,
+  deleteRepo,
+  showChangelog,
+  updateRepository,
+  layout,
+}) => {
+  const [editingRepo, setEditingRepo] = useState(null);
+
+  const sortedRepos = useMemo(() => {
+    return [...repos].sort((a, b) => {
+      const aUpdate =
+        a.CurrentVersion &&
+        a.LatestRelease &&
+        a.CurrentVersion !== a.LatestRelease;
+      const bUpdate =
+        b.CurrentVersion &&
+        b.LatestRelease &&
+        b.CurrentVersion !== b.LatestRelease;
+      if (aUpdate === bUpdate) return 0;
+      return aUpdate ? -1 : 1;
+    });
+  }, [repos]);
+
+  const gridClasses =
+    layout === "vertical"
+      ? "grid grid-cols-1 gap-6 mt-6 items-start"
+      : "grid grid-cols-1 sm:grid-cols-2 gap-6 mt-6 items-start";
+
+  const onMarkUpdated = async (repo) => {
+    try {
+      const updatedRepo = await markRepositoryUpdatedAPI(repo.ID);
+      setRepos((prevRepos) =>
+        prevRepos.map((r) => (r.ID === repo.ID ? updatedRepo : r)),
+      );
+    } catch (error) {
+      console.error("Failed to mark repository as updated", error);
+    }
+  };
+
+  const handleDelete = (repoId) => {
+    deleteRepo(repoId);
+  };
+
+  return (
+    <>
+      <div className={gridClasses}>
+        {sortedRepos.map((repo, index) => (
+          <RepoCard
+            key={`${repo.ID}-${index}`}
+            repo={repo}
+            onDelete={handleDelete}
+            onShowChangelog={(id) => showChangelog(id)}
+            onEdit={(repo) => setEditingRepo(repo)}
+            onMarkUpdated={onMarkUpdated}
+          />
+        ))}
+      </div>
+      {editingRepo && (
+        <EditRepoModal
+          repo={editingRepo}
+          closeModal={() => setEditingRepo(null)}
+          updateRepository={updateRepository}
+        />
+      )}
+    </>
+  );
+};
+
+export default RepoList;
+
+### ./src/components/ui/InputField.jsx ###
+
+import React from "react";
+
+const InputField = ({
+  label,
+  icon: Icon,
+  type = "text",
+  name,
+  value,
+  onChange,
+  placeholder,
+  error,
+  disabled,
+  className,
+}) => {
+  return (
+    <div>
+      <label
+        htmlFor={name}
+        className="block text-sm font-medium text-[var(--color-text)] mb-1"
+      >
+        {label}
+      </label>
+      <div className="relative">
+        {Icon && (
+          <Icon className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+        )}
+        <input
+          type={type}
+          id={name}
+          name={name}
+          value={value}
+          onChange={onChange}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`w-full h-12 px-4 ${Icon ? "pl-10" : ""
+            } rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 ${error ? "border-red-500 focus:ring-red-500" : ""
+            } ${className}`}
+        />
+      </div>
+      {error && <p className="mt-2 text-sm text-red-500">{error}</p>}
+    </div>
+  );
+};
+
+export default InputField;
+
+### ./src/components/ui/ChangelogBox.jsx ###
+
+import React, { useEffect } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { FaTimes } from "react-icons/fa";
+
+const ChangelogBox = ({ name, version, latestRelease, content, onClose }) => {
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") {
+        onClose();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-50 px-4">
+      <div className="bg-[var(--color-card)] rounded-xl shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto p-8 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-[var(--color-text)] transition-colors duration-200"
+          aria-label="Close"
+        >
+          <FaTimes className="w-6 h-6" />
+        </button>
+        <div className="text-center mb-4">
+          <h3 className="text-3xl font-bold text-[var(--color-primary)]">
+            {name}
+          </h3>
+          <h4 className="text-xl font-semibold text-gray-400 mt-1">
+            {version || latestRelease || "Unknown Version"}
+          </h4>
+        </div>
+
+        <hr className="border-t border-[var(--color-border)] my-4" />
+
+        <div className="prose prose-invert max-w-none prose-pre:bg-[var(--color-bg)]">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ChangelogBox;
+
+### ./src/components/ui/AvatarPreview.jsx ###
+
+import React from "react";
+
+const AvatarPreview = ({ url, isValid }) => {
+  if (!url || !isValid) return null;
+
+  return (
+    <img
+      src={url}
+      alt="Avatar Preview"
+      className="mt-2 h-12 w-12 rounded-full border border-[var(--color-border)] object-cover"
+    />
+  );
+};
+
+export default AvatarPreview;
+
+### ./src/components/ui/RepoCard.jsx ###
+
+import { useState } from "react";
+import { FaChevronDown } from "react-icons/fa";
+import RepoDetails from "@/components/ui/RepoDetails";
+
+const RepoCard = ({
+  repo,
+  onDelete,
+  onShowChangelog,
+  onEdit,
+  onMarkUpdated = () => { },
+}) => {
+  const [expanded, setExpanded] = useState(false);
+  const [confirmUpdate, setConfirmUpdate] = useState(false);
+  const [updateConfirmed, setUpdateConfirmed] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const toggleExpand = () => setExpanded((prev) => !prev);
+
+  const updateAvailable =
+    repo.CurrentVersion &&
+    repo.LatestRelease &&
+    repo.CurrentVersion !== repo.LatestRelease;
+
+  const displayName =
+    repo.Name && repo.Name.includes("/")
+      ? repo.Name.split("/")[1]
+      : repo.Name || "Unnamed Repository";
+
+  const handleMarkUpdated = (repo) => {
+    onMarkUpdated(repo);
+    setConfirmUpdate(false);
+    setUpdateConfirmed(true);
+    setTimeout(() => setUpdateConfirmed(false), 4000);
+  };
+
+  const handleConfirmClick = (e) => {
+    e.stopPropagation();
+    if (!confirmUpdate) {
+      setConfirmUpdate(true);
+      setTimeout(() => setConfirmUpdate(false), 4000);
+    } else {
+      handleMarkUpdated(repo);
+    }
+  };
+
+  const handleDeleteClick = (e) => {
+    e.stopPropagation();
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      setTimeout(() => setConfirmDelete(false), 4000);
+    } else {
+      onDelete(repo.ID);
+    }
+  };
+
+  return (
+    <div
+      className={`bg-[var(--color-card)] rounded-lg shadow-md border border-[var(--color-border)] transition-all duration-200 hover:shadow-lg ${expanded ? "border-[var(--color-primary)]" : ""
+        }`}
+    >
+      <div
+        onClick={toggleExpand}
+        className="flex items-center justify-between p-4 cursor-pointer"
+      >
+        <a
+          href={repo.URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-lg font-semibold text-[var(--color-primary)] hover:underline"
+        >
+          {displayName}
+        </a>
+
+        <div className="flex items-center space-x-2">
+          {updateAvailable && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleConfirmClick}
+                className="rounded-md transition-transform duration-150 ease-in-out"
+              >
+                {updateConfirmed ? (
+                  <span className="text-green-500 bg-[var(--color-card)] border border-green-500 px-2 py-1 rounded-md text-xs font-semibold">
+                    Updated
+                  </span>
+                ) : (
+                  <span
+                    className={`bg-[var(--color-action-edit)] text-white border border-[var(--color-border)] text-xs font-semibold py-1 px-2 rounded-md shadow-sm tracking-wide`}
+                  >
+                    {confirmUpdate ? "Update" : "Update Available"}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+          <FaChevronDown
+            className={`transform transition duration-300 ease-in-out ${expanded ? "rotate-180" : "rotate-0"
+              } text-[var(--color-text)] w-5 h-5`}
+          />
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="p-4 border-t border-[var(--color-border)]">
+          <RepoDetails repo={repo} />
+          <div className="grid grid-cols-3 gap-3 mt-4">
+            <button
+              onClick={() => onEdit(repo)}
+              className="py-2 px-4 text-sm rounded-md border border-[var(--color-border)] text-[var(--color-text)] bg-[var(--color-card)] transition hover:bg-[var(--color-action-edit)] hover:text-white"
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => onShowChangelog(repo.ID)}
+              className="py-2 px-4 text-sm rounded-md border border-[var(--color-border)] text-[var(--color-text)] bg-[var(--color-card)] transition hover:bg-[var(--color-action-changelog)] hover:text-white"
+            >
+              Changelog
+            </button>
+            <button
+              onClick={handleDeleteClick}
+              className={`py-2 px-4 text-sm rounded-md border border-[var(--color-border)] transition  ${confirmDelete
+                  ? "bg-[var(--color-action-delete)] text-white"
+                  : "text-[var(--color-text)] bg-[var(--color-card)] hover:bg-[var(--color-action-delete)] hover:text-white"
+                }`}
+            >
+              {confirmDelete ? "Confirm" : "Delete"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default RepoCard;
+
+### ./src/components/ui/Toast.jsx ###
+
+import { useState, useEffect } from "react";
+import { useTheme } from "@/context/ThemeContext";
+
+const Toast = ({ type, message, duration = 3000, onClose }) => {
+  const { theme } = useTheme();
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+      if (onClose) onClose();
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [duration, onClose]);
+
+  if (!isVisible) return null;
+
+  const themes = {
+    tokyoNight: {
+      bg: "bg-[var(--color-card)]",
+      border:
+        type === "success"
+          ? "border-[var(--color-primary)]"
+          : "border-[var(--color-border)]",
+      text: "text-[var(--color-text)]",
+    },
+    dark: {
+      bg: "bg-[var(--color-card)]",
+      border:
+        type === "success"
+          ? "border-[var(--color-primary)]"
+          : "border-[var(--color-border)]",
+      text: "text-[var(--color-text)]",
+    },
+    light: {
+      bg: "bg-[var(--color-card)]",
+      border:
+        type === "success"
+          ? "border-[var(--color-primary)]"
+          : "border-[var(--color-border-dark)]",
+      text: "text-[var(--color-text)]",
+    },
+  };
+
+  const themeStyles = themes[theme] || themes.tokyoNight;
+
+  return (
+    <div
+      className={`fixed top-[100px] right-10 z-50 py-3 px-6 rounded-lg shadow-lg border-l-4 transition-all ${themeStyles.bg} ${themeStyles.border} ${themeStyles.text}`}
+    >
+      {message}
+    </div>
+  );
+};
+
+export default Toast;
+
+### ./src/components/ui/RepoDetails.jsx ###
+
+import React from "react";
+
+const timeAgo = (dateString) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const seconds = Math.floor((now - date) / 1000);
+
+  let interval = Math.floor(seconds / 31536000);
+  if (interval >= 1)
+    return interval + " year" + (interval > 1 ? "s" : "") + " ago";
+
+  interval = Math.floor(seconds / 2592000);
+  if (interval >= 1)
+    return interval + " month" + (interval > 1 ? "s" : "") + " ago";
+
+  interval = Math.floor(seconds / 86400);
+  if (interval >= 1)
+    return interval + " day" + (interval > 1 ? "s" : "") + " ago";
+
+  interval = Math.floor(seconds / 3600);
+  if (interval >= 1)
+    return interval + " hour" + (interval > 1 ? "s" : "") + " ago";
+
+  interval = Math.floor(seconds / 60);
+  if (interval >= 1)
+    return interval + " minute" + (interval > 1 ? "s" : "") + " ago";
+
+  return "just now";
+};
+
+const RepoDetails = ({ repo }) => {
+  const formattedPublished = repo.PublishedAt
+    ? new Date(repo.PublishedAt).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })
+    : "";
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+      <div className="bg-[var(--color-details-bg)] border border-[var(--color-border)] rounded-lg p-4 text-center transition-all duration-200">
+        <span className="block text-xs uppercase tracking-wider text-gray-400">
+          Installed
+        </span>
+        <div className="mt-1 text-sm font-medium">
+          {repo.CurrentVersion || "Not Set"}
+        </div>
+      </div>
+      <div className="bg-[var(--color-details-bg)] border border-[var(--color-border)] rounded-lg p-4 text-center transition-all duration-200">
+        <span className="block text-xs uppercase tracking-wider text-gray-400">
+          Latest
+        </span>
+        <div className="mt-1 text-sm font-medium">
+          {repo.LatestRelease || "N/A"}
+          {formattedPublished && (
+            <span className="ml-1 text-xs text-gray-400">
+              ({formattedPublished})
+            </span>
+          )}
+        </div>
+      </div>
+      <div className="bg-[var(--color-details-bg)] border border-[var(--color-border)] rounded-lg p-4 text-center transition-all duration-200">
+        <span className="block text-xs uppercase tracking-wider text-gray-400">
+          Released
+        </span>
+        <div className="mt-1 text-sm font-medium">
+          {repo.LastUpdated ? timeAgo(repo.LastUpdated) : "Not Available"}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RepoDetails;
+
+### ./src/components/layout/Header.jsx ###
+
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { FaHome, FaBell, FaCog, FaSignOutAlt } from "react-icons/fa";
+import SurveillanceLogo from "@/components/layout/SurveillanceLogo";
+import { useTheme } from "@/context/ThemeContext";
+
+const Header = ({ showBanner }) => {
+  const { theme } = useTheme();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const isActive = (path) => location.pathname === path;
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("token");
+    navigate("/login", { replace: true });
+  };
+
+  let bannerBg, bannerText;
+  switch (theme) {
+    case "dark":
+      bannerBg = "bg-[var(--color-primary)]/20";
+      bannerText = "text-[var(--color-text)]";
+      break;
+    case "light":
+      bannerBg = "bg-[var(--color-primary)]/10";
+      bannerText = "text-[var(--color-text)]";
+      break;
+    case "tokyoNight":
+    default:
+      bannerBg = "bg-[var(--color-primary)]/25";
+      bannerText = "text-[var(--color-text)]";
+      break;
+  }
+
+  return (
+    <header className="w-full bg-[var(--color-card)] shadow-md">
+      <div className="mx-auto flex items-center justify-between px-5 py-1">
+        <SurveillanceLogo />
+        <nav className="flex items-center space-x-6">
+          <Link
+            to="/"
+            className={`transition text-2xl ${isActive("/")
+                ? "text-[var(--color-primary)]"
+                : "text-[var(--color-text)]"
+              }`}
+          >
+            <FaHome />
+          </Link>
+          <Link
+            to="/notifications"
+            className={`transition text-2xl ${isActive("/notifications")
+                ? "text-[var(--color-primary)]"
+                : "text-[var(--color-text)]"
+              }`}
+          >
+            <FaBell />
+          </Link>
+          <Link
+            to="/settings"
+            className={`transition text-2xl ${isActive("/settings")
+                ? "text-[var(--color-primary)]"
+                : "text-[var(--color-text)]"
+              }`}
+          >
+            <FaCog />
+          </Link>
+          <button
+            onClick={handleLogout}
+            className="text-2xl text-[var(--color-text)] hover:text-[var(--color-primary)] transition"
+          >
+            <FaSignOutAlt />
+          </button>
+        </nav>
+      </div>
+      {showBanner && (
+        <div className={`${bannerBg} ${bannerText} p-3 text-center`}>
+          You have not set a GitHub API key. Please configure it in{" "}
+          <Link to="/settings" className="underline">
+            Settings
+          </Link>
+          .
+        </div>
+      )}
+    </header>
+  );
+};
+
+export default Header;
+
+### ./src/components/layout/SurveillanceLogo.jsx ###
+
+//import { Link } from "react-router-dom";
+//
+//const SurveillanceLogo = () => (
+//  <Link to="/" className="flex items-center space-x-2 text-4xl">
+//    <span>ğŸ“¡</span>
+//    <span className="text-[var(--color-primary)] font-bold">Surveillance</span>
+//  </Link>
+//);
+//
+//export default SurveillanceLogo;
+import { Link } from "react-router-dom";
+import logo from "@/assets/surveillance_logo.png";
+
+const SurveillanceLogo = () => (
+  <Link to="/" className="flex items-center space-x-2">
+    <div
+      className="w-16 h-16"
+      style={{
+        WebkitMaskImage: `url(${logo})`,
+        maskImage: `url(${logo})`,
+        WebkitMaskRepeat: "no-repeat",
+        maskRepeat: "no-repeat",
+        WebkitMaskPosition: "center",
+        maskPosition: "center",
+        WebkitMaskSize: "contain",
+        maskSize: "contain",
+        backgroundColor: "var(--color-primary)",
+      }}
+    />
+    <span className="text-[var(--color-primary)] font-bold text-3xl">
+      Surveillance
+    </span>
+  </Link>
+);
+
+export default SurveillanceLogo;
+
+### ./src/main.jsx ###
+
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.jsx";
+import { ThemeProvider } from "@/context/ThemeContext";
+import "@/styles/globals.css";
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <ThemeProvider>
+    <App />
+  </ThemeProvider>,
+);
+
+### ./src/App.jsx ###
+
+import { useState, useEffect } from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import Dashboard from "@/pages/dashboard/Dashboard";
+import Settings from "@/pages/settings/Settings";
+import Notifications from "@/pages/notifications/Notifications";
+import Header from "@/components/layout/Header";
+import Login from "@/pages/auth/Login";
+import Register from "@/pages/auth/Register";
+import PrivateRoute from "@/components/PrivateRoute";
+import { fetchSettings, checkUserExists } from "@/config/api";
+
+const AppContent = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [loading, setLoading] = useState(true);
+  const [showBanner, setShowBanner] = useState(false);
+
+  const refreshBannerState = async () => {
+    try {
+      const settings = await fetchSettings();
+      setShowBanner(!settings.githubApiKey);
+    } catch (error) {
+      console.error("Failed to check API key.");
+    }
+  };
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const checkUserStatus = async () => {
+      try {
+        const exists = await checkUserExists();
+        if (!exists) {
+          navigate("/register", { replace: true });
+        } else if (!token) {
+          navigate("/login", { replace: true });
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkUserStatus();
+  }, [navigate]);
+
+  useEffect(() => {
+    refreshBannerState();
+  }, []);
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <>
+      {location.pathname !== "/login" && location.pathname !== "/register" && (
+        <Header showBanner={showBanner} />
+      )}
+      <div className="container">
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route
+            path="/"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <PrivateRoute>
+                <Settings refreshBannerState={refreshBannerState} />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <PrivateRoute>
+                <Notifications />
+              </PrivateRoute>
+            }
+          />
+        </Routes>
+      </div>
+    </>
+  );
+};
+
+const App = () => (
+  <Router>
+    <AppContent />
+  </Router>
+);
+
+export default App;
+
+### ./src/context/ThemeContext.jsx ###
+
+import { createContext, useContext, useEffect, useState } from "react";
+import { fetchSettings } from "@/config/api";
+
+const themes = {
+  tokyoNight: {
+    "--color-bg": "#1a1b26",
+    "--color-card": "#24283b",
+    "--color-text": "#c0caf5",
+    "--color-primary": "#7aa2f7",
+    "--color-primary-hover": "#3b82f6",
+    "--color-border": "#3b4261",
+    "--color-border-light": "#4b526d",
+    "--color-details-bg": "#2a2f4b",
+    "--color-action-edit": "#3a6ea5",
+    "--color-action-edit-hover": "#325a8c",
+    "--color-action-changelog": "#5a5a9e",
+    "--color-action-changelog-hover": "#484880",
+    "--color-action-delete": "#a83232",
+    "--color-action-delete-hover": "#8c2b2b",
+  },
+  dark: {
+    "--color-bg": "#181818",
+    "--color-card": "#252525",
+    "--color-text": "#e0e0e0",
+    "--color-primary": "#ff6b6b",
+    "--color-primary-hover": "#d83f3f",
+    "--color-border": "#333",
+    "--color-border-light": "#444",
+    "--color-details-bg": "#303030",
+    "--color-action-edit": "#cc6666",
+    "--color-action-edit-hover": "#a64d4d",
+    "--color-action-changelog": "#b366cc",
+    "--color-action-changelog-hover": "#9247b3",
+    "--color-action-delete": "#b04242",
+    "--color-action-delete-hover": "#8b2e2e",
+  },
+  light: {
+    "--color-bg": "#ffffff",
+    "--color-card": "#f3f4f6",
+    "--color-text": "#1a1b26",
+    "--color-primary": "#2563eb",
+    "--color-primary-hover": "#1e40af",
+    "--color-border": "#d1d5db",
+    "--color-border-light": "#e5e7eb",
+    "--color-details-bg": "#e5e7eb",
+    "--color-action-edit": "#2563eb",
+    "--color-action-edit-hover": "#1e40af",
+    "--color-action-changelog": "#3b82f6",
+    "--color-action-changelog-hover": "#2563eb",
+    "--color-action-delete": "#dc2626",
+    "--color-action-delete-hover": "#b91c1c",
+  },
+};
+
+const ThemeContext = createContext();
+
+export const ThemeProvider = ({ children }) => {
+  const [theme, setThemeState] = useState("tokyoNight");
+
+  const applyTheme = (themeName) => {
+    const themeVars = themes[themeName] || themes.tokyoNight;
+    Object.entries(themeVars).forEach(([key, value]) => {
+      document.documentElement.style.setProperty(key, value);
+    });
+  };
+
+  const setTheme = (themeName) => {
+    setThemeState(themeName);
+    applyTheme(themeName);
+    localStorage.setItem("theme", themeName);
+  };
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const settings = await fetchSettings();
+        const savedTheme = localStorage.getItem("theme");
+        const t = savedTheme || settings?.theme || "tokyoNight";
+        setTheme(t);
+      } catch {
+        setTheme("tokyoNight");
+      }
+    };
+    loadSettings();
+  }, []);
+
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
+export const useTheme = () => useContext(ThemeContext);
+
+### ./src/config/api.js ###
+
+import axios from "axios";
+
+const api = axios.create({
+  headers: { "Content-Type": "application/json" },
+});
+
+api.interceptors.request.use(
+  (config) => {
+    if (!config.url.startsWith("/auth/")) {
+      const token = localStorage.getItem("token");
+      if (token) {
+        config.headers["Authorization"] = `Bearer ${token}`;
+      }
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+const handleApiError = (error) => {
+  if (error.response) {
+    const { status, data } = error.response;
+    const message = data?.error || "An unexpected error occurred.";
+    switch (status) {
+      case 400:
+        throw new Error("Bad request. Please check your input.");
+      case 401:
+        throw new Error("Unauthorized. Invalid credentials.");
+      case 404:
+        throw new Error("Resource not found.");
+      default:
+        throw new Error(message);
+    }
+  }
+  throw new Error("Network or server error.");
+};
+
+const apiRequest = async (method, url, data = null) => {
+  try {
+    const response = await api[method](url, data);
+    return response.data;
+  } catch (error) {
+    handleApiError(error);
+  }
+};
+
+export const fetchSettings = () => apiRequest("get", "/api/settings");
+export const updateSettings = (settings) =>
+  apiRequest("post", "/api/settings", settings);
+
+export const fetchRepositories = () => apiRequest("get", "/api/repositories");
+export const addRepositoryAPI = (repo) =>
+  apiRequest("post", "/api/repositories", repo);
+export const deleteRepositoryAPI = (id) =>
+  apiRequest("delete", `/api/repositories/${id}`);
+export const updateRepositoryAPI = (id, updatedFields) =>
+  apiRequest("patch", `/api/repositories/${id}`, updatedFields);
+export const scanUpdatesAPI = () => apiRequest("post", "/api/scan-updates");
+export const fetchChangelog = (id) =>
+  apiRequest("get", `/api/repositories/${id}/changelog`);
+export const fetchScanStatus = () => apiRequest("get", "/api/scan-status");
+
+export const validateApiKey = async (apiKey) => {
+  const result = await apiRequest("post", "/api/validate-key", { apiKey });
+  return result?.message === "GitHub API key is valid";
+};
+
+export const fetchNotifications = () => apiRequest("get", "/api/notifications");
+export const updateNotifications = (settings) =>
+  apiRequest("post", "/api/notifications", settings);
+export const testNotificationAPI = () =>
+  apiRequest("post", "/api/notifications/test");
+export const markRepositoryUpdatedAPI = (id) =>
+  apiRequest("post", `/api/repositories/${id}/mark-updated`);
+
+export const loginUser = (credentials) =>
+  apiRequest("post", "/auth/login", credentials);
+export const registerUser = (credentials) =>
+  apiRequest("post", "/auth/register", credentials);
+export const checkUserExists = async () => {
+  try {
+    const result = await api.get("/auth/exists");
+    return result.data.exists;
+  } catch {
+    return false;
+  }
+};
+
+export default api;
+
+### ./src/assets/surveillance_logo.png ###
+
+‰PNG
+
+   IHDR  Y   á   UÂ6E   sRGBÙÉ,   	pHYs     šœ  wPLTE   øøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøø 'ƒA   }tRNS 9UªÜ|GqÕÆÿ.ãœN€r $Kc‡ñü§ yµõØ®kÃøÊ¯Dæß±£¼@úÌ\Ï%êJ`¶g)•P	¿íjáC¸57n'L2E+R‘ÍÑdBì³ŠI>èuÇÎôƒ¾ÅıS¬:äÁ#ó¹xöÀ˜,ÖºÓ<3![ç³  ûIDATxœí]YpÇ^I¬´t€N$Â`HHøˆ€í"˜DÈòAª’TÅå«œJ%©òkó<ğªTLÊN¹œËISQpğIl°IBÙØã`°¶A€ml³Ò‚´šì»;3ÛİÓİÓ×ªæ{ĞìÎŒzf¾íùûïÿj`Ä úf-bfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fV˜™¦M÷¢æäğRõã³2›Öš&ëuË óÀLîov’ñß)˜MU]4*/¹_){3UsÁi&aıÿã]èƒF0™ï,3ö¦æœó59ûSWy–´%$³-Àm£%=ãÙï¥sİïöAPëÿçùgÜµó?"½èøØıPÕìéiGÄ%æTÚÛÉ¬õ×yGh—Çíuuà}xã%Ìvàl»À™à!fÚŞø˜M&g çF8î|X6~qŠ|4â~èıv8ñ¥MmEóÕa¶Ñ;8jhh=7î;bÿCÊ¼\Øq%â'(`Ê^fÁ<±EtƒÃî§%£^ßñÌê·ÜÏkÿ‡?·¹á `vğhØV‚tşG(ÚÌ^}„âWƒı†ŸYWæbx•æt>œ8Iq¶ı"ú˜Í!ÃEëÓg3ÆWO-zzı`¯ÁÄlëT×¾Üfyæ.9!'&«ŸÂ,ißËÚ/´3ö¸»–.™Úï|š·
+€÷2îA4,{ÙŞn˜©x‘ìşÄ ¾Ú“×ÃŸ˜Ö(ícvà]ìôr?x´_4'œ!g#ØïİëŠ÷€n¬òÓ]÷š½5ÃÅ¯Jlr~ç®eéä$Ì?–´šcö¶~­Ï‡ê³}­Ï9Ö.ÌQlN¸ãŸY£¦"÷ç†g}›/îkU#´î¶·[N°·ù©ŸY¤rTMºOßlúõ Èg
+C`—¥ÎºßÌ¦,­zèoÄiˆGímş…0kIjcx'y{¬³Û ³³Afi3‹BÌ¬(Èg¶~Â2MäUØK¹ëŞö/è,±|ÑdMk\jLkD«ı’ºjfÁŸ‘ S›;~†áÊÚ"•i)yš·ZC-%³ Q}ıÛŞ›56ğd%œ×E:fƒÖB˜-Äz3Ÿ¤4óÓ1‹3LL]B+àl …i¨˜EÛaö1T/ ì°6¨!*f±¶´Yáë:;J%ñø1;+TÛ;Å¾HÑGfÍL¹Ë”æS€"fËğ[¾ı¶ïƒËadP)^|™Í‰æÈÕh¬õé‹ÁleÌºCÏÑÉiO—8f¾6Ÿz»Ìú- $¼¼;…´Qº{°}¡0§ËjÖP2n¹HÓMà)™M­kÛMpZ"­&ª€Wd>	?É Ÿ¾Ó[‡O}»İ§!§™“e1–jØ[XJbÅeÈiø–Yn'€y3ĞVÌ•ÿáĞ¸P X.Ö%.‘É ú‹.~Gs‘ 7fnz…ÇÛÆ)æ5{ÑX½…Ë~3InÑô…L×YYÇUÏBRµÂ€_B¢ŞÖ¤jÂÈ;ŸÂög3Ün–gÈ¶§­}ã¼Ò€® :Á‚Uÿàw®¹5©«ÏC£o¿	Ğ¨ß¢&²ıày¾YK]×!øÌÊF(‚@Í¸Ì¯§~Ç¡ùxçƒÕ'¦CVD¶è´õ
+gï|%,&”0Ì$TîF ÿL;°áßğQ¦¼ Ñã˜Ğn?x”]+9ğâÈTwíP@c×9T£¬2¡iË“&'ûO³%ì€›ı±ÀEd“üóSÄd‡"= wş‘š[˜‰Á(‘Ê  ¾f1%ÊY pB²”i›ˆ—!Î}'*£MCó$8—§v„9óÅåŠcÂ>È¦¼‰*P‰?ã®™Ç	ÆÄ–şqdÊ]Øfá£_@’)/‘c*§o„N{ºã–Xƒ‘Èú¸l&óºçpÿšœ&ó Ææø	÷	ò\9b]ßŸQ‡ãûÈK"o[•W¾	=€u
+ñÌì@õ›˜~Uo+ª–¢½LÃû Ma:¾pó¦ğj'àî¿ •ÎÊú£Êpõ4U"p±’ºç˜h“¼„:2É%˜Øse1£ÌÁ×q¿hÃêgÄÛŞdTèišÀ\eºı„{' I)^K1±©ãûşGrkCJí#üs:a8E®ízÜ¸¨\=õ/s¸R(dU•Â·ÁÍyå‚¬ëû·JŠß‘V¯‹$ÚN²·ü]Ò•ä=.nJ&½ô2;Ù„UäF›É}E ¿—z=?äæUÉeö»s«LÚÊ)‘ş mi%A3òCzåw¡äV’\Îh‡EAÁË9ô‚t%AEà±‡öN‹@¢
+S¡H(×åsÁ5/ª‰|RÄìÒëŸ’tåìFQp4P7å$©S´å8Bád>¹*¤¦fdH±Ã¢ ÒL2p¨ZìnØ¯°è­RÔÜğS"a9PQ6Ô…Jf1Uiø`Íe…yS*™¥+—Ë§ú±(dV<±Jë„ÄZ—(¨c–®:8+hê“ğ…:fE+ÔÕºRÆ¬pÅÀºZWÊ˜•1~YP6†©b¶»6RöTQ«ˆÙïƒÇe]JU)LEÌş <&íZŠÔEÌ’Uúáƒf‘MPÄ¬•ËA{ZÉJZj˜%ªûÅw›¿”xµ”0+9zNJ¸l	”0+K—ÍC‰â¥‚Y)¶/”ØeT0[•”}EÊÂ{\ ‚ÙJÁî¯R¨°Ë(`¶ï=é—äW+Š
+˜•=~YØšàZ#†ò™U’°Ğ¹ò)Ù—”ÿ”*º¬Šu4¤3Ëî¤137¿È4&İ.#Yf[Œ]›B‡…tÅK:³Œ¶˜X4fm™ss¥+^²™e’²­·îğ$‚‡®'‡ì)®df±k
+¡Ğ3¾í¾`>C”ª ™Y–.›­,YbîÇ‡ï@r§ÕYd¶Q[Ã¦Gèš’ì“Ë,²à#ê|L>çà’Ó¤+°»«He–Ö•RşsğöĞ¥f¼H€W‘–ÈlÛgT²‘(ë°}áµT™¼»­Ä,|ªp#Ò¼nÒ<\H\?C³]ÏÓÍe€)e·4ÿ‚$f©:,uö1Uš†tFJ·•ÂìğÉãäÎòÂ’-CU¸‚”n+…ÙğÅ `,N%¤,ñ YJ¤*42!»I¸ş%Yr³aÔ:/4ujîßQîÕûêïù5é©V6¡	Â4‚™…vØå‡Jß[nÕH`2Á„>¦à@{¡Ì=½fíÙ a†g½§R™cjÒÍ~í^…@$³àÎÅ;JvÚJU›ß.Èq…#A™`™¡uØ®İ+Ğï(²Î7dv_÷+Å,!U‰¼2!ï§ù"–šÉ,¤íü$à{uwˆšÈƒÖÂkQ´ÂÀ&ÂÜåŠb¾óáˆë_5B7uwºRÔë/U„•ôS•µtoz—Ñı.UékıçUŸsãG§ŒÆ-û÷V¬]¾Ë¿GŒiQ³ÍÕéláÿ O|QM9Öì1güo°BOóĞş§ã0W—:ğÁ9ŠÓî{ÕöÍP¾¼ Àzy`Â=Ë˜¥AÇà¥}Åo\½¡ÛjoÙ0ÛrÕÇ|+aŒXèOéâ£ÿ43™MN…—tÛÁuÇÙŸøÜpß‘ŠÿŸ=¯„•2Ûø¹‘hØz´wîÃrFØÖ/‹-r˜˜/ºí7SÙƒÖ~µu«KÜ¾Ûa¶)=·çğ3kgs‡]H,bäf;mß´}ÉÎ3‘£R@ï¦ÇW5ëDlŞÂĞÓ5–aõ{ÛŞÙ ~n=ÄÆ¥öb;]<˜uÂ­\€@ØVTK]HLgÛ'•g#µïÀ7¿ã…
+<îcäU¦«P1Û18jo[¬È¢ËÃÜœ0KQ:-Q-ûlåU‘—Ø7²“~f†ĞõÎùeFB›%9)•q¶­¾1º F]f³‰’ÆØ™%õñôÔ_ŒªˆMšù+ÛÌ–Ø•2ÀğÖ…èã¸ÛÎÏ«ágÍYì¬Ê…6ff–"¶{ùá:š)G)Q|³è°Ô5éÃö¶e
+~ùà PÏÃĞ3!p£ûÌöv0-¸A½¦E´bÓ8fi²*Öõ2™íG.‰¸¶f–-¿%^>’™•³W4øÃ¹^vÓë„-…ôY&cG„³¸¥$ıXĞùšQë³ş³ò­‹FßÂqÚÃ™eQ¹"­mÃ,îBÔ·ßÈ{ÿ;ô£®jëNT«$?I_«cî»e/9¨øÁ0cLí(^’qµå¡=plfŞôtéîÅ®IòÆ•¿
+k•æÕkéw^ÄŞ¤ú¬Fö\¯e"aÕE¶Ôî6®©vİúé^òFYî$€RféÇ®p9`Ya¢`Ød´˜E´´G!ÌR»c	ô·Íğà-6=¦·*f$Œ`?¢®ˆ.ŠÖn‚€N&™ yi&(¶ÊhÌÂ”êû“Ñ‰Akì¶cçC2?.MÑİ‚˜¨éüüë$$³°°-ê´«°‚=Ÿªfª‘Ûûå=Øh‚İ9sY$fÂöŞLšºñÔôÁ·Ã†¤áŠQL1Æ]AÃ&Y¥m$fá³z·Ò·G:¾ğXüXPm"² –nı)íØÂu/V/™ÌvÀ—êè­ó8d¬y„.0òúuĞ`BÆBˆˆYnY3kTÃzß¼ÁÃ¡ÍÕ|ã~ÓÛaZğ
+¶õ)f%³ß€ €æäS‰&~ø¤§O–jl¬ş«‡‡ê(J˜…[+neÀô/»äë»Núç+¦=~„k«¹½~ÉqØî¶³5‰Ùwa{YŒ‡¦¼tøf¨#êOO_~af¬øÍ¯ä³Wî„çªÔ0z,¢é³U”Ñ_[Ôx|r €9 wiÊSÜ¬(¢”“«…Ì{˜İÏg·%ó–öclwR?ílır —+ÓÙÁeX	QB‰@´äõÈvƒ„ÿkkågçUôÉ0ËV÷_÷vdB´`Øá€ã.ŠW?Ê}ğÄÖŞ9@â‚òÇ%æd‚Â%€Ğ†ÙûÎîòvâTOŸU!•Q°d0Ú0ëM§°DƒˆĞYº”z+mC?fië#Ùàœ«Çº1K#¼ĞO&hÅ,½ğâş·†ºª%B+f#ı]ÿşŸûà­˜X¨ZÍZ(hÅl´õlT Ç@/f#­Á¤n1K(4c6Êºa*úÀ@3f#,i£ÅÀfÌFP.t…nÌ2«z)†~Ì²ªš)††Ì2ªš)†Ì²©š)†Ì2©º)†Ì2©º)†–Ì2¨Ú)†–ÌFû8M’Íæ·æ³r‰…–ÌRåÙLVDÌ»M™%ÎX~/"teÖ°"V6âÓT¿c>ª[„ÆÌÆÈ(NŞ.N¯
+9Ó	Z3‹óŒ™“‹ÇdŞ	54gÖ€{sõóÔ–Bf!F”¢˜DÑ6iSŠ²`Ö,Dk”³¬%½Q>ÌÆ†ëÏP.¨åÄly!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVbfE!fVşTä+-`Q$    IEND®B`‚
+### ./src/assets/surveillance.png ###
+
+‰PNG
+
+   IHDR         ûô   sRGBÙÉ,   	pHYs     šœ  ıPLTE   øøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøøi:Ô‚   ÿtRNS 9UªÜ|GqÕÆÿ.ãœN€r $Kc‡ñü§ yµõØ®kÃøÊ¯Dæß±£¼@úÌ\Ï%êJ`¶g)•P	¿íjáC¸57n'L2E+R‘ÍÑdBì³ŠI>èuÇÎôƒ¾Y~î×“3b«öÂŸz÷¦ZM-È¥¤:lËùû‚/¬xİ&4„;›­ğAšºtëÅı*HÄ˜6…äS
+ÛïÙ"Œ‰iÉTˆQFf‹’ç{à°,ŞW´™¨Ó[©Ôhp^şoXv!<}a]—¢Ö–Ú¹²”V1s#å»OÁe?†wâ8½Ò_òmÀĞ¡ó(·0é=3¬‰U  *[IDATxœíw`EßÇg/@ $´„Jh¢<HPEETŠˆ øXP|¬ˆú<*>ŠŠ> øbãAAAEQ±ğX °¥jèEij
+%Ü›Û™¹Ûi{·›½²»¿Ï™½ÙÙÛÍİíw§üŠ†  ğ-Z²/  €ä  >  |  ø  ğ1   àc@  ÀÇ€  €    >  |  ø  ğ1   àc@  ÀÇ€  €    >  |  ø  ğ1   àc@  ÀÇ€  €    >  |  ø  ğ1   àc@  ÀÇ€  €    >  |  ø˜€âh0ş'JÕ*şÃCÕK’} `•ø@†:G0èáÛ£–v¬âoyi²¯ ¬È¨úªrˆ¼dèÅ‘ğ	¡¿µ÷Çã¼	¥®VJ5­~™^Ôø¿L?Zñ§N•=I¹, °‚­‘Ÿzvñ1C5}æG^—è;µšìÁµw‘šµ·WşRâFÓd£jCƒtãqM Z½,-ıÅ=0uµÃ»õ:u´_ã}™ `‘J@Şf\¶ĞvI÷‹õ‚€ôôcÒ¶5Ò6áÖ»Ø¿&‡i¸—l´Ù&ÛøSW€´ø%€šŠ4WÓÖêY9¿ívò"À> #x8¼}B´Ú}` ­–êş§ıH¶%eâ0SY‡ïÉv§õæmf}ƒ8(\ííµbÚÆ#!ÀİX€“×XhÜA[X ó1ÒQ[f¥¹3–l±ĞZïÖ0@_ÄÆ_V€ãXí”¡S·6ù>zÃµÏ-È9ÒbiEÑ%øµ«s„Š!|Õ‚ÿC‰ Ä*‘åz÷(z‡ â‰õ9€–Í,Ç[µN4¿Oğ™Q ¸	2¬ÖŸêeÏci‹,_—ƒdV'Óš6˜7,×BŒ ¬3=¢Íwd¬€TÀ‰eÀzxÖ®—¶ÜXKfÈ¸U€ôªÆ6yu¾ĞË`j?	û`9jÑš’àInçÈ	éef)Üğ@
+â @~Î‡x£Sı
+%–)<V P´Š?§€ëúşõ™sç;Ù…õò¼-¿è%µüa ij)ùïaÆHaâaÔ_{7d@^q2šéÿvN›0zÔ] —´Ï	@h|+	 V‰¿)0' „  p  • p-  • p-ñ€Ì’W]ú?Tq{\ğ¥Ô¤Ö½4Ù
+× b04)XóÏd^ X# UcÿËª#”{p——nŒ²lá¿iõ,ñî!n jJûü6z&4Hzù§G¼   õ‰— ğn¿<8ÃÄªÑÓÑO O/0ó‰9rH½Ï=˜ù5„­   µ‰“ ¨ış‘WfËU~ÿ:Ş]ò ¼EœÀÔ)Ö=ä¿›íõÈ0ğ<É O<`ºıW–¹} Zã ¸‚¤ 
+ÅÃpo/ óáh¬î YP1p­½LİšQCùyaø8	€î…`QÛ¤ éGcˆú ¸ƒxÙ°‘ôİúƒËzšKTC	 R¸™ë‘¢<ê*£ ´(S„b¸ÿ—7ÈèÒhaÍÅÉ‰şo‡ve{£7B` ¸ˆxºÜÂGÎÛ)i,uÅt V]Ö§ïõ´Ã’f š$ =¸ZÇ¤ç¶ÿ:¡—aÅÂ?<ìw“X@Z–ôùØìçÈ=ËÎüÜ} P’`PÛĞ¥°Y€¼óï{F H¸ (WSÕ6°éIH?$Xë<@ jÈÏZšŠƒ~.Ù'«//KÁ‹ ‹$C úâ¼çÿÔ¤€*­ªwâû	¾ ˆÉ ”qòï¿ÊêûisRèÁª²úÍíüJ‚¯ âC’ µè®ÈæŒmà '2s©ìş‚çd¼ìÀÛ@òI–  ”8ª˜õ«äğºÉÎP¿½ü¢Ï¥}ŒXQuşQ0]:'  n$yPqî_ÉwTÆ>X´ÂN†~³Öş2İ •(öIKÙåJ °L2 µøMuz»ç½axËÒÎ;·Ûz­·¶\¾§<ı€­w€”$©€Lbë^ôªe	ùêÚp4È(Sõş=Ğ Â$[ L‚ëY´Ô4ù}[~ÈâûÈíş˜ş$Ù`–CÈÊg¥Ó¡÷ñD4s `H¾ ˜f‰Í>8PU«bŞbÈ±—b˜VÌî¼{ƒj$û¼H*€I¯;ûà˜‚ô¡@qtGıVyŠ©¿”öU û¤„ ˜%ÚDÁîšš~4¶0]õ}Ë\KÌ„üşo’PA—ü¹ª]Ê™üAŸ”Åy0BI•VKw˜Fû„ÉÀ«¤Œ T_mÒš¤Um¹Õêi²Ú-•¾•I7"Uı” ò¤Œ T\Êğ×•ûDÛÀ‚übúËŞJ˜0EhµFÿ€gI!¨¸››¤
+	¶~C·Mlub‚y¨›	OV‡ÿÁä?àaRJ Pƒ“ë9Úø¼¡ié‡ş"%}šN×7Ìµ¤\ƒÇ?àeRK ¢ÜxI0ÆìQèÖâ¥Ğd€<Ú'¡Uæ§œÉ&×jÚÊõWÌºğ¸‡?‘ÆıÆHíÍ‹v4Ù_WÓ¼í±x(Å E»¿{nùÅ¹S•#³Ä¹’8ùİ–¥†W×kÚÿÉÛ~—g.÷İõ.ÿş,SıïÉbÓ¬Ëµ©ÿØ?MzŠ1Oâòü×T›¿—mV*ëÆ ZÃŸb^^3'Ú·ı‡¯¹ïq\şëè§³ˆÓÃÿäícÕ­è÷‚ĞÚ}Ü¾ßâ’û^"ÛFÏÉ<wŒ¢¥™#õ ¦Ä¢	 ü¬w’vîñ?¼ËWÕ.ß-kiC zHqÖº7”>(©¾Ÿ<ÆÜ¥8eÁe“uÆwó¨ ä†SC·—GµÒ‰ 9ÛE ¹[˜’¾P{Q~O
+€©a`ÂH¢é_~ş’Úû´;$µõ (ÍŸ'Ô=:—Í×¨zì~\2?5
+@ÿ%‘íÿ©lf€ÿÜÆí3€ójâ_Á8íYco
+@¬Ö½ñ#©G~*°<¤İ,V:ÙĞ™p€ïn¶ğ¼^vüBuÌÓ£õbD»•€Ó†doP63À£×sûL pÿDé0â:I­W ¡i¯›‰$™¦Ó'ìRíš4B¨r\ Ğ°nWs53‰ğSõ‰H¯øš'•€FF¶ïù·²™A ĞÓW²ûÌà¥Å:ÌÔÿ+½+ —õ½.i—–TÓ¿ÙÚµÊ}ÏnAç M×.f+æEè#t&’iæc­G`ˆ!çµğl`€‹Ÿg÷™ÀÃÕgîxÓß…:ï
+@Š“r:–Ø6£f˜ì|qâ,€ò°Éæ]ËYƒäíO&“/_`¬õ¦ ô¾ÄØ3½w´ªQ ÎåÍÔğvÉ?LÎ][4“ó´  ô£7rš$ûıŸ¶vDÁK>W2ê…v]>y)\÷j®}< ÍéÇ¼Ìàò”åÍß#=†K¦k½) “q¯îP½xéBU;£  ×Ïeö© W$JnÛ‡fnY^°~Ö¬k‡ë.Öi½- ¨ÿÇ	_H²ßAx!mvv¸öæßèÄğü³¸*±
+`\ÖËßRy9övæˆYx²‹ä‹p÷õâÍs˜ZúÛ<ÓÄ¼;ã3öu¡a{ùîËO4TŠiä, ÿÄ÷à;XˆgUµc€;‘R >
+w±nÿ2œyªÇƒa9~ïş4v>d–” ³ğÜñ Pµ4É–¿}èLûû=ŒÕwö§ÏÿÆP‰ ¿®ßbvøşp3Ôxx<.ß:IhYÿg½ä~ô·9{ ì èĞáğGİL›%X †aãEzñ¸r¾†€Gnbö) }Şyßhô±‚ª~İ+ùPe?ä” „Nk”°qÀ)‹’îøCƒ$w]ÂÖçg|7†=ÇîpP Z©‰d‡L%WI-¨À’®Lµ7 /xäl<¿üKÕ|/×?£Ÿ»6aø´€;¨6™ôzósöFÿ–>ò?çğ ´<m^‚®±¼WÒ~®:—Ó/á÷Ğ›gBl@-"sË¾ğ"wãõÆêÕ¤ÛñN/ÙEÓ^Ëï1Õ€n?èÅã×}TßàWøÂ\7[/†½ªì\ª0ò\.~€ı$:k.û¿Êíğ T ÕJÀr@°8şçˆÊwİqùEGa×4buÖiSíh ¡s‰ÂçŸY½ÿÀü+d]¿L/xÃXO
+ÀøbVt¨ƒM÷”Yí… °¡+óJ •‚é º–&£e»~ ”~âúè*EŠøıSG“gÅßçÉ“ÿË˜jg{ ‘_;×pÒOzñÄYòöŸq×ŸWPO
+ÀZ|6YG$êmV4$p/de}ÜÎ°O% ë»àò¾€Ğ†Î¸äG> Tğ]õøàôå)‘ñë”õâÅÁâ.º Í­Å9Ü@I\ôÕ­µ›:áòó|É…­Ä%7Õ“@¾ â å}¯hHàû·ğS}Ğ,Ã>… |İ—âø¡_ÿ†K~ÙÁ/€‹óû·Õ¾‰Ş(ş\míªÿ.ÙGF_µgj€¢¸dÿ©©Ïšæâ“çÕ-Ùz/
+ Uá“Í&–ù¬íC" ?-Á Ì«€­ä›ı©™øvôv,áPgrˆ‡ÅæÄ³î …—./7ß«İ>bj ô>>÷â‹#ú†duôƒîâÆá’·Šó¢ ®Õ‹+¦ T÷IOZ,oI¾—´ƒ§ê}„ûî4ìS¬Ğy­’÷Ûv¼^œÎ-‰ùE ÒâîØ0+º MÉ8dY'ÉNê…Â®<9. ÛÉh•½ŸŸÁ–Aœ­Î‰x,ØÅ{Q òöèÅÃ¶*óhò½ÔÛLf{‚K(z ;Úâò•H„[™ÉVûD âÿ#T’±¿‘§û×ÇKvV#Ã ÉÌ¡ã@~°Ü×bò£l-fUÀ8Ñ3Î‹°Ï„FBD64’·$ßK«ïÈm=ØÑC! »È´‹ti‘,ÏL½œ­ö‡ øf°ûgoŠùÇà]2µ¾±±¶jºê4—ÍÇ¥àïE ¡MÙ]€'cUæÑä{Y×döFİ¿ßè*­€ÿ]„Ëûe_>=_/î¸Ÿ­ö‡ L’ö8‡Ò¨+qìÉÃåÂÓc>Äq O6ôÂEÆÚE¸ä=[š.…
+ ¦;yB3Fáí[H›’ï¥éZÒyZÜ'²Ì¤€ßÈ,êÒÎ±_‘? ŞK ˜ÒØsˆÇ‹)dª(gcÌ‡8. ¿·À%%s"ş^Õ†oß;kˆññ<( d1/ÄYÀSå™+É÷rûXêß¹èäğ> kÄ}	 &?À^²Ì¶¥n¬G8. ¯_…KÎñ‹>z‘%äbÛŸ«b„\
+ 1‡Àkq¤SÎ/ÌÈ÷²--ÄaR®şox€51"¦;‘Áÿò¸p€§H-İ#<7(PoÁƒ‚+Ÿæê½( Ä Ûÿ¦WÕ_|ÛVÚ”|/¡½ø¨œ+ÂÑÁA ,‘WS|ÙY’¯ ¿Çîè†²2€¤“ÿ0t(q”Zş7¶yOb?qÓ#üyO ¨PqĞø.U¤6¤Ä¨ûá/5²º§° 2åàøDŠ7fM<Ó§gñ¯Æihr=¹“od3‘ĞXü“ş`\>ÏÅô¢ \ş–^<ñşDjy7–ƒã¤1\É÷2¨ˆ(¾kE÷AÀ
+÷µQÇ^vš¤/¬ÛDm ·×‰í§€æøàíz¦<Œ#ÿ6û‰­'A¬$á1½' d~´/ÉÚpõ'.Œ„ ßËÚˆZñ­mJ÷ X¡F£‚5t0í˜=@6êÖş1¦œ bê"š"tÁ™ül?ñPhõğNŞ€±Wÿ
+â.AL3Û~+kK¾—ö!}üñ}ûî»É> +$fÓ¸˜º›hVÜG¶Ú]!À”à° LïHb	îÔYõU¥áÀ$Òé= f@4,ÏÍØ,Wn
+D¿—P§²;VÇ°7€È\kb˜ºA–/¡òNdi.MÅà° Ğ)ÀÅíkq{¯—]Œ"ŸOÒ'/úRyN h¸¦'¯!F¦E¤‘é÷r×„|IŸ&¯”‚ ÄN‚…–kÉ¶xvÃ3‘ı´}8J{g‚|*ÙàCFBvß:ÎXûW^È"…DX»Ñ<CÊ	 ù¨GL"¯§¬Ã£ÿ9êÆèÎĞ´.;P×á8€İ9å Q6 ”ä¯îb"q !Íº˜Š»£=€Ï¦Á¨$^®Äò]÷&ñCd±Â¢†¬/6Á”r@ÒD´±8[/Şí)iL¿—Õ0,Ğ¤q %Q>äT€„¸I— “‡’ûÌÁmÊ„qN
+À¤ÖhPàm™â»!î,Ìº÷Ü¦óbF<' d¾3â |)şÌ–IÓï¥f(¾÷5×ê,é	3Ô	-qDıÀâNï±çòU¹o(Ï8—dÁSy‘°kgÍßDÁC‡¿¹Ì£¸”-ZzM hdÔˆ‰$M™&3b€xóßÑ{rƒ ÄL•8‡I— g?úŸXùî:¹m`\Rƒ¥”TÒğÿÆh%.Å¥ÌƒÕk@c£_ğ2­¡Te<X ¾ÄÅ Vòc÷ŠsŠÀŸIï I+Ş+»İÕ[Ö6ğíWbPb„ZÀs^ÎŒÔ‘šè"„¼' W¾©Æ`‰$ÊeÏˆ­Y ."¬  ±’è)À/Goo~X-1”¦åˆƒ Ì½±HZ?{ï b6Ôy©¤¹×àÉ1zÑ|M¤Êäßg€>ÚK·#	^Ää¶Ÿ—ø“
+Lúö˜rBL˜;|bÇÕ¸4ü@É#PÃĞk@Ì€Œ3'& N nÂÁ°›7@Œ$£ÀGÂH³ÿ˜"xAJb:. ëŞU9"Ò9¯·Ãc:–ÍzM îœ‚Ëó_‹ÔÑ)^â ÒrŠş‚ Ä†ıH`Á²Ş‹jÚ^@LºKaÜ—›.áœlÅLT•XÑïn1)%#€ËˆÓ¤Ù4¸×,‘ãdƒÉ“É"' ã^Ğq¬7°ŒÛn@Í~®½ô*vÿµä¯†ùsäLøëoÉåZ8Ú|x,÷e˜˜|­ á*kí1øé$½`ó²d^Ošs€FÍĞ‹×CK¼  ±aÓ¨LkR*3ÊjØûçR`%ĞÀã×œy%¸9* S®0½
+?âıBLá¤«†^€7q°n6i1úM«ò°›ô.\6±60ÅÖ@ÎÒæ†Q‘°5H¾=0ÃeŸD\Î™$sÈ!K@î§ßRSoÈ©dµŸÂ¥ÆğÒT6 êöÈKî÷‰^H\!xÈüP_=Õœ¦0#=İÆmØj÷ì–VÛÆã<X’:ƒ …½êÓMŞVÙÈ¾œ¬d›K5…¡·$u‡;û-Yko	 =føSÆÚ}$?‰€ßú[÷‘tª  fØé ”Wù“¯ÚÚZ«bù}R¬€Âi©ÿtÈ >1gßševÔv™%>.R3 ¯	Àfü—‹‡¢‡ À·=ô"´„2é\`†eU¬ß5ÊZUÏÚ[%?8 Ï”¥t¥©6ëøéŒ \NŸá
+ ‰ŠK'ıHì‚Gn’6ö– I¼‹^`«É'"D€DO½e|…lü†«@ LXœÁSöÛ›ïT¥qWB„Şí^ÂLYÇ¼;’G˜,5uŸ.…‘ xÿ¾GÚØ[@Ì€ˆ!@ëNDY×	Ooƒ ¨±¨¼Ìô–-\Õx¿•·h=ß¶vq§İ°áz š,«ì7“k ™qÈ—†Å8[ÚØSğH”ğlBPdQ Èªv(vÒsøƒPÑh¿¥q»²óo¤qı›%–´jR­Ğ 9Ş`³v:$ ·‘‡ûÏĞ°Äx¤y`|o	@4£4!-É`°*\«3†"t;s…¼ 
+¬å3ëüiW¶×ÊÛK«';<ÍÙUmŸ±Ö©€ ­È“êñkÍ®ál,BõÁ+ÎÒ_4Ú oë)ˆf”&$F{ ãÕ;¡ó+>µğZ.ô ¤´(øÈÊ$|”Î¿‹ó
+)ÈÈÅ$ïïLŒ§àe:Š•¯ép¦[’¥ş5‰à)ş†ù~!5¢( ¨9~ ~BM*A dXzüÇÔù7’fÅ2(«¸,…:4(-,…qJ ZŞF¢Öw]br4BÓc!kb«ºA½$ t¹OIûÚœ)D È¨à³.4€ÈÀ-›b¿CíôÒ5ÍŠ‹Q*uš¼…#q°tÇbÒNnÎ²h „E‘³QO˜p¾/	À>ÓÅ‘Ÿç³¯%Y[¼M¾
+‚“¾€ ˆ_²/z#‚…Î¿KÒØæYª»bŠ±òB’^LÎqÖãBüÊ ?}òK£\2'â¹ÂĞ<D_œCyK Ètš!,÷ı‹ÄmŸÈEp‘ :K¼xÚtZ…€NÃå¾j’+ ã‡Ñ÷²ÕŞ +î;–;ÿF¬Êû$lAğ ÎwÂ—òİÄè„ØKgŠêíÃ&ş\ÖETà¶àRîÛGø¢^„Â‚MÀ	NùXÑÔK°ì½Ù<¾‚;d÷ü›­–	@=ü“İ^g~Æs@zÙÜK„#ØFs3gÒæ-ˆİÿ7Ö™éGc·3\Õ)Q§¯Ò‹7Ï‘ï&=€ıŒ‰I=kÈ=˜¯òt… ,§	nz¼¯¾Ä:Øµ"4HnŠ_(šzI ö6×™Í#™
+åMd@fqÆİÚ[sr@s/ÉbŒ’¸ÂBnV/	@æ]ã¢7ÂØìü±0H˜oĞœ8b¯"ú!¬şl`°­Ä?]’3l¸ÇeúV@Ø#Hšè‚@;í¾A?wÕ·ªª,¬<$ 4+Òÿ÷ÑÑÁ½£™j* ÏgTnÔ­9÷¦ß†s‹pv ç}†Ké?œ‹?æÕlÚ/	€ôñßö;±³^©Î¿Ù@ (ı@‚Á„tèû1éÙhü­ïóŒµ÷>Ë!3Å#èÚÕ¯fªU‰AhæÜêtRÔpS6µ¼D•±ÀC@×HY,öÍ82Y€šrNÃ¿u®@¿`™ Ó€dF²õ€şš˜‹ªâÆ«¹‡÷	ªlçßˆ8¨¸Ñ¥!ÊÏ„êw4BñÃ$¾wè¼¹L5y4Œ>ğÀ×â	Õ~sØz• L¦ÃØ]êP,SŞO.ñ(Šà\xH h8ÔÖ«Å}½/ÁBÈ9I€øSw}²»^rğ é¨ÜØN8Ÿñ~^ í¢ÆÏ•ú*_#ÖÁ×Î¿~ ’q­º¤/Òí³„
+¥w |n;ùYLÁTS>18ıÁ&¤7:P	Àº!Ä#hÚ¥êk$WñN/ò¿U9nó Lû§^şí$kzÜŠ±T ˆZ¯íã®pC ´”¤„:M|Ú+\ ™ñO°)ù[ÄÛ±Î¿ã@€“E*?÷ =N"7ñÈ	âNâNŠrï`;ô$éš[Ä/Ç³=áFW&ı®;Ùø# ¼ÆÇî×‹`ñx¼ş¥¾‰¼# ÔhÜ­²½Oá‘‹ €2¼V3x ©Ä¶’¨w»Ã+ ¹
+jãC²ÄÏ8_Ë	w2"@2{¡øÇ'¿4¿Xü>i€äÒu@!ŠÉÑ<bRÁ­ª`a=’ôç–ñÊK$SÕ{ÓÉØl¬ÒMÖ;ğ"™ü—äSG‘yQvõN. Ä2c2¶à ˆ¤X½ãŞ,
+‹^ 3h‚à®ŸÄk.¾A^.és‚‹ËNN?È	Â³7ñ»n£I©qéuHrÔ—5Wïñ,¥Gù:=8YŸF£+½_é„øOéF#É(Ş€¯HJ&á£×¡ç’®ÆZÑ0Ä×=õbïò€jÏ[V‹©'Ñ„*º{§qGø@ ĞˆâwQŞ:KOßüœ%G,uªõØ¾Õ}è2¶6­S[.œ}„×u¥Oñaİ˜~ş²l²õf~†è%ÚõÏ.3„ôœıÕ!Ô¯Z ~¥¾Àƒ_T^#1|9Ûÿ\ó¤²¡w€Xáq73…†F­·ÙX+ï §‹…Ü$`8ôxEpî4C5ÍËŒêÎ+äğƒ 4lZ½8ûC+GşòGu‹Ó…ƒíÂ[À4ì?‡ı|â1<<
+G÷ûÙç[N·ÓŸæk»RÃ€fıÂş=§ÒçÑûFs¨ ìÔı¿âD4¡3öş€}¼¢jşm¹CÙe|Æ¾6ş¾×Kù‰†Jn4ƒ"óGçlv…é2yiõë› 1ìeí·ğ—ÑÎZ€ÃuéÖsí–ŞB6·ö€âŒ«™%õ i›ÍÂÔğd=1Mï[ì±kš¬ÏÀY'Ç[ zÿãšğöü´K×t)*höÉM;"‘¤"CwäUí\÷åËÎqzäÁ,¦S z¶‘&ûÒéƒsƒ~…æåTí¢g­BB„Ókæ(Ú…¹M›ĞÇ¹\ÌN‹‡Ğ«ú]‘«Z°0
+X8ÄğB€ğŒnCÿsèøg{åöÀÂpÕåÿW‹?ÀÆ‡Ìá°BÓÂC†T­Ìö<"l.÷œ!}1Ñl÷©üã¼‚·wšÄ«ë7Lèš@-*™ò	ï5¾RšyH æ“‘a“uò¦t¸Ïø\) ¼ÔB€&¹?š\“$Z“Ë û¤ß8ú†ƒVÖg¿kgìÂK…ñOD'œä<s™¬ö4‰}
+åÄ•B•‰ Ğ8Ÿè‰µ‚]¡å ƒÅï›bÄ3@ )}$¨5öLãÓ]% Ôç7„( húN‰W'AÈ
+…Ü( éGQ¸g>ô›.›°‘Š3÷Uşš4!– 3S÷tUP€ºQ îná ûlW¾ÕÁwˆ‘6zÆL ÚÑyDiÆo™†$tWµò ÜŠ{9ÜB¿bŒ¹¡‘¡N% ÆÈ@ÿVe¡Û›]-VºM ğõâ¹ôœ?#çvÀØ¾Éˆ‰
+gÂİMkn«ì»‡”ëÂ…X ×êÁ½gİ°©ÏÉD"³ø™^Êâœ3?Á–ÏËÈ*è¼Mr„™ Ì˜JBßˆvE”¹†ß¡™i„W€ÎòóxÎÅ£N&2‚J Ö-‰Œ×d€´Iò +/ºERë6ÀZ©ßFé¹»;*}imî½Aµ/7XGì[§ÿ{5ÒBö6ıyæâQ¡¢WK}~ÎÙÀA}G•U>KV­Ó¤Š4àé¼«d¹şÌ ¼ä%µFÄojXV4[õŠ ĞI™Ã5†Zğõ6DP	 *iŞ”
+ êƒìë¿µ±Tİ& ØË$ğgOıWY—Û(ÉÀí­bšò&F“åÁo§/"Dƒ–9qôö%’{=m”Yhúu‡Ç×öépÂT . ñ=D[$BFÄNXİ+FŞ º
+¿èdU[zíTÃbµR æG¦qä€2ÚısíºÈO²Ğ´Ïœd‡"üGâj7³’ `ü_™.€Ô}‡§¼ÊIR;K'b/»¼”€°Gs×Oõ¢OSõ¹9MÊ_›gôZÛòÊho•Ùû¦ï˜uÒù’1cSXW“,.>M²;Ä¬pWk”2Ñ8ò ˆòH]:ùq¹Ò`± €ÙÃë<
+@èµÂñF—ÏéÍÇ¨~º)' $Ëd3â(§µ/ ±k•ùWe—xßäzf] —¦2Ïv±dÇ@è±¾pÑ7_1jró{LRıRX´Mé5/şiÖ	¯Y´?ubÖ™qÂqw6ø¡ÉÍ7ìÙ$‰BàÎÀ@j2[]ş~Õšá•*µ£¹mˆÒù7ÒöÇ:6îDÊ„¥!Pç3ïXŒWw³Tîô à8ö@Ó2·fGo†!á”Ğ¦é;ª]¦×KçßHI¥,ƒÌ Zò(#×¦RÂÀÏØ€ÎŠ”Prğ(Y% ¡iAëX‰"L©”[¿SàìÂ! ØÇ¾ ¬xfŸ¹"ÆÆQz ¶¼ì,tşT"Ô¿™ dÈ‚H©—ûJ±¼ƒ€oqh°#ÙK[.İ½êv¼D* ;k€–;ÿFl†,”×ëı›Rwñ…ŸÁÌ’î@rpv ?/…µ˜ñœâWXl˜ÊbvY!XfÏø¸ÿbùç¥@ÁjC!¯±ï1TeR É'>v Ù±t]£Åœ ƒ›#6Z†ôÌx†ã¼šÑ)Õñ?`Ÿ©6 ¤É°4b}ú/zç?ä Cî{¢Œá/±
+ Ü@’Àr ßfşÉ{FO hoE@¶Ş ¸”
+€@üS¹\³øŞù‰!¸­€¤RŠR(‹0 ÄN¢@¶Jfùñ¿úrç“¼÷ÿĞ¿«R×±v	:²ñEîÁ°´¸D	€,õ—M):Òñ·‰¢Ô8ÒxŸÙ!m”±4Ìh »rËÿ $	@áZY­Ñ:&zmİ¥Ş¹»–lVo`ÚE0Ç–Ç ˜	Ò„X0 ¸	€Ü†Îzˆ=ŸM éo6Ä¯V=(„
+Ã´œ•oõ
+ô7”/Æ?b  8ŒË ©<su›šE†¨_!3!ÖÔgĞŠîÒô¾‹e!s¢¢0	 \‡Ë U—=Ëkşh˜$+ÌƒºÉ¬ø´y1 x·	ÀÅ—­‹[ÊcÖèJ6ŸbxÂ‹KˆvcùM˜-]  \G‚@î(cã)®g^³]ı[X3¡´ã¢ 	vr3›KæÉ³Ç@
+“ (fU±ã\ïˆñ®eÌy­ÌÜÂ7o{àXQäkÃcs	 É5+j!àà6e YÂ·	8²Çtş5­šbª¿MËŒ—#¯"{QH05%fM•l I a¦À‚õ\ãön˜Ì£¸d;ÿÜÎYÂÊÙµ€ÆYT"Î $úØ—l­À!Úÿf:ÿÑ|ÿòÖ0<°†(Ì@.ˆ!ÄøÜˆ³hù<×ù%›)¸b àl: p%.€kö¼k|ÜFwû%0e– Ü( 1şãL¦` ğ®€Ø:ÿFØ  ø7€ÙÌ¿!À³¸W ¬tşÀ@  Â¸T ¬wş¬:ûNˆÕ Èµ ÌÑ]-ræ: Àİ¸T !9bÅ¾  x
+—
+ J¯Z‰ƒ+ã  ^Â­ Î4à¸ ×
+€Ü#76*ç  ŞÁµ-D¸	à  ×
+@%ì Ïá^°½ K  @q¯ Ø]€%  ãb°¹ K  ÆÍ`o! –   Œ›ÀÖB , @7€­… X €® °  \- 5ŞkDÀ}¿¯m/  x—€,ãŸ’Ò´:» Œ¸^ PFYl‘ÁÊÁè 8Ü/ (”§§×
+ÓOo€Õ ñ„  4hÙ\@³âßWï ÿâ0‹,mV”È+ ÷à@ò8Á Lğ’ H2@  0Ã[P1¨V%òªaä 3<& !ˆe@)ôı  ¤j–Áº DÅ‹€PÏeÓ“} à¼)   Ä  ø  ğ1   àc@  ÀÇ€  €    >  |  ø  ğ1   àc@  ÀÇ€  €    >  |  ø  ğ1   àc@  ÀÇ€  €    >  |  ø  ğ1   àc@  ÀÇ€  €    >  |  ø  ğ1   àcş%*
+ñó)g\    IEND®B`‚
+### ./src/styles/globals.css ###
+
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #1a1b26;
+  --color-card: #24283b;
+  --color-text: #c0caf5;
+  --color-primary: #7aa2f7;
+  --color-primary-hover: #3b82f6;
+  --color-border: #3b4261;
+  --color-border-light: #4b526d;
+  --color-details-bg: #2a2f4b;
+  --color-action-edit: #3a6ea5;
+  --color-action-edit-hover: #325a8c;
+  --color-action-changelog: #5a5a9e;
+  --color-action-changelog-hover: #484880;
+  --color-action-delete: #a83232;
+  --color-action-delete-hover: #8c2b2b;
+}
+
+body {
+  @apply bg-[var(--color-bg)] text-[var(--color-text)];
+  font-family: "JetBrains Mono", monospace;
+  /* Apply to the body */
+}
+
+.container {
+  @apply max-w-6xl mx-auto p-8;
+}
+
+.btn {
+  @apply px-6 py-3 rounded-lg font-bold transition-all shadow-md;
+}
+
+.btn-primary {
+  @apply bg-[var(--color-primary)] text-white hover:bg-[var(--color-primary-hover)] hover:-translate-y-1;
+}
+
+.btn-secondary {
+  @apply bg-gray-600 text-white hover:bg-gray-700 hover:-translate-y-1;
+}
+
+.button-group {
+  @apply flex gap-3 justify-end;
+}
+
+
+.input-version {
+  @apply h-12 pl-10 pr-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] text-[var(--color-text)] outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+}
+
+.input-row {
+  @apply flex items-center justify-between gap-4 mt-4;
+}
+
+.modal-container {
+  @apply p-6 rounded-lg shadow-md border border-[var(--color-border-light)] bg-[var(--color-card)];
+}
+
+
+.card {
+  @apply bg-[var(--color-card)] p-5 rounded-lg shadow-md border border-[var(--color-border)];
+}
+
+.prose-invert h1,
+.prose-invert h2,
+.prose-invert h3 {
+  @apply text-[var(--color-primary)] font-bold mt-4;
+}
+
+.repo-name {
+  @apply text-[var(--color-primary)] font-bold text-lg hover:underline;
+}
+
+.error-message {
+  @apply text-red-500 text-sm mt-2;
+}
+
+.login,
+.register {
+  @apply min-h-screen flex items-center justify-center bg-[var(--color-bg)];
+}
+
+.login-card,
+.register-card {
+  @apply w-full max-w-md p-8 bg-[var(--color-card)] rounded-lg shadow-lg;
+}
+
+.login-title,
+.register-title {
+  @apply text-3xl font-bold text-center text-[var(--color-primary)] mb-6;
+}
+
+.input-field-login {
+  @apply w-full h-12 rounded-lg bg-[var(--color-card)] text-[var(--color-text)] border border-[var(--color-border)] pl-12 pr-4 outline-none focus:ring-2 focus:ring-[var(--color-primary)];
+}
+
+.btn-login,
+.btn-register {
+  @apply h-12 rounded-lg bg-[var(--color-primary)] text-white font-bold hover:bg-[var(--color-primary-hover)] transition-all shadow-md;
+}
+
+.input-icon {
+  @apply absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-xl;
+}
+
+.toast {
+  @apply text-sm font-medium text-center mt-2 text-red-500;
+}
+
+### ./src/pages/auth/Register.jsx ###
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { registerUser } from "@/config/api";
+import { FaUser, FaLock, FaCheckCircle, FaTimesCircle } from "react-icons/fa";
+import Toast from "@/components/ui/Toast";
+import SurveillanceLogo from "@/components/layout/SurveillanceLogo";
+
+const Register = () => {
+    const [formData, setFormData] = useState({
+        username: "",
+        password: "",
+        confirm: "",
+    });
+    const [toast, setToast] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const navigate = useNavigate();
+
+    const policy = {
+        pattern: "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[\\W_]).{12,}$",
+        description:
+            "Password must be at least 12 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character.",
+    };
+
+    useEffect(() => {
+        if (localStorage.getItem("token")) navigate("/");
+    }, [navigate]);
+
+    const showToast = (type, message) => {
+        setToast({ type, message });
+        setTimeout(() => setToast(null), 3000);
+    };
+
+    const validatePasswordStrength = (password) => {
+        const regex = new RegExp(policy.pattern);
+        return regex.test(password);
+    };
+
+    const requirements = [
+        { label: "At least 12 characters", test: (p) => p.length >= 12 },
+        { label: "One uppercase letter", test: (p) => /[A-Z]/.test(p) },
+        { label: "One lowercase letter", test: (p) => /[a-z]/.test(p) },
+        { label: "One number", test: (p) => /\d/.test(p) },
+        { label: "One special character", test: (p) => /[\W_]/.test(p) },
+    ];
+
+    const validateForm = () => {
+        if (
+            !formData.username.trim() ||
+            !formData.password.trim() ||
+            !formData.confirm.trim()
+        ) {
+            showToast("error", "All fields are required.");
+            return false;
+        }
+        if (formData.password !== formData.confirm) {
+            showToast("error", "Passwords do not match.");
+            return false;
+        }
+        if (!validatePasswordStrength(formData.password)) {
+            showToast("error", policy.description);
+            return false;
+        }
+        return true;
+    };
+
+    const handleChange = (e) =>
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!validateForm()) return;
+        setIsLoading(true);
+        try {
+            await registerUser({
+                username: formData.username.trim(),
+                password: formData.password.trim(),
+            });
+            showToast("success", "Registration successful. Redirecting to login.");
+            setTimeout(() => navigate("/login"), 2000);
+        } catch (error) {
+            showToast("error", error.message || "Registration failed.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const renderRequirement = (req) => {
+        const passed = req.test(formData.password);
+        return (
+            <div className="flex items-center space-x-2">
+                {passed ? (
+                    <FaCheckCircle className="text-green-500" />
+                ) : (
+                    <FaTimesCircle className="text-red-500" />
+                )}
+                <span
+                    className={`text-sm ${passed ? "text-green-500" : "text-gray-400"}`}
+                >
+                    {req.label}
+                </span>
+            </div>
+        );
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
+            <div className="w-full max-w-md px-8 py-10 bg-[var(--color-card)] rounded-lg shadow-lg border border-[var(--color-border)]">
+                {toast && <Toast type={toast.type} message={toast.message} />}
+
+                <div className="mb-8 flex justify-center">
+                    <SurveillanceLogo />
+                </div>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <FaUser className="text-gray-400" />
+                        </span>
+                        <input
+                            type="text"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleChange}
+                            placeholder="Username"
+                            className="w-full h-14 pl-10 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 placeholder-gray-400"
+                            required
+                        />
+                    </div>
+
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <FaLock className="text-gray-400" />
+                        </span>
+                        <input
+                            type="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            placeholder="Password"
+                            className="w-full h-14 pl-10 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 placeholder-gray-400"
+                            required
+                        />
+                    </div>
+                    <div className="p-4 bg-[var(--color-bg)]/50 rounded-md border border-[var(--color-border)]">
+                        {requirements.map((req, idx) => (
+                            <div key={idx}>{renderRequirement(req)}</div>
+                        ))}
+                    </div>
+
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <FaLock className="text-gray-400" />
+                        </span>
+                        <input
+                            type="password"
+                            name="confirm"
+                            value={formData.confirm}
+                            onChange={handleChange}
+                            placeholder="Confirm Password"
+                            className="w-full h-14 pl-10 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 placeholder-gray-400"
+                            required
+                        />
+                    </div>
+
+                    <button
+                        type="submit"
+                        className="w-full h-14 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold py-2 px-4 transition-all duration-200 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                        disabled={isLoading}
+                    >
+                        {isLoading ? "Registering..." : "Register"}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+export default Register;
+
+### ./src/pages/auth/Login.jsx ###
+
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { loginUser } from "@/config/api";
+import { FaUser, FaLock } from "react-icons/fa";
+import Toast from "@/components/ui/Toast";
+import SurveillanceLogo from "@/components/layout/SurveillanceLogo";
+
+const Login = () => {
+    const [formData, setFormData] = useState({ username: "", password: "" });
+    const [isLoading, setIsLoading] = useState(false);
+    const [toast, setToast] = useState(null);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        if (localStorage.getItem("token")) {
+            navigate("/");
+        }
+    }, [navigate]);
+
+    const showToast = (type, message) => {
+        setToast({ type, message });
+        setTimeout(() => setToast(null), 3000);
+    };
+
+    const validateForm = () => {
+        if (!formData.username.trim() || !formData.password.trim()) {
+            showToast("error", "Username and password are required.");
+            return false;
+        }
+        return true;
+    };
+
+    const handleChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!validateForm()) return;
+
+        setIsLoading(true);
+        try {
+            const data = await loginUser({
+                username: formData.username.trim(),
+                password: formData.password.trim(),
+            });
+            localStorage.setItem("token", data.token);
+            navigate("/");
+        } catch (error) {
+            showToast("error", error.message || "Login failed.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg)]">
+            <div className="w-full max-w-md px-8 py-10 bg-[var(--color-card)] rounded-lg shadow-lg border border-[var(--color-border)]">
+                {toast && <Toast type={toast.type} message={toast.message} />}
+
+                <div className="mb-8 flex justify-center">
+                    <SurveillanceLogo />
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-6">
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <FaUser className="text-gray-400" />
+                        </span>
+                        <input
+                            type="text"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleChange}
+                            placeholder="Username"
+                            className="w-full h-14 pl-10 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 placeholder-gray-400"
+                            required
+                        />
+                    </div>
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <FaLock className="text-gray-400" />
+                        </span>
+                        <input
+                            type="password"
+                            name="password"
+                            value={formData.password}
+                            onChange={handleChange}
+                            placeholder="Password"
+                            className="w-full h-14 pl-10 pr-4 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 placeholder-gray-400"
+                            required
+                        />
+                    </div>
+                    <button
+                        type="submit"
+                        className="w-full h-14 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold py-2 px-4 transition-all duration-200 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+                        disabled={isLoading}
+                    >
+                        {isLoading ? "Logging in..." : "Login"}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+};
+
+export default Login;
+
+### ./src/pages/notifications/Notifications.css ###
+
+
+
+### ./src/pages/notifications/Notifications.jsx ###
+
+import { useState, useEffect } from "react";
+import { FaBell } from "react-icons/fa";
+import Toast from "@/components/ui/Toast";
+import {
+  fetchNotifications,
+  updateNotifications,
+  testNotificationAPI,
+} from "@/config/api";
+import NotificationForm from "@/components/modals/NotificationForm";
+
+const Notifications = () => {
+  const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [initialSettings, setInitialSettings] = useState({
+    webhookUrl: "",
+    discordName: "",
+    discordAvatar: "",
+    notificationMessage: "",
+  });
+
+  useEffect(() => {
+    const loadSettings = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchNotifications();
+        setInitialSettings(data);
+      } catch (error) {
+        showToast("error", "Failed to load notification settings.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadSettings();
+  }, []);
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSave = async (formData) => {
+    try {
+      await updateNotifications(formData);
+      showToast("success", "Notification settings saved successfully!");
+      setInitialSettings(formData);
+    } catch (error) {
+      showToast("error", "Failed to save notification settings.");
+    }
+  };
+
+  const handleTest = async (success, message) => {
+    if (!success) {
+      showToast("error", message);
+      return;
+    }
+    try {
+      const res = await testNotificationAPI();
+      showToast(
+        "success",
+        res.message || "Test notification sent successfully!",
+      );
+    } catch (error) {
+      showToast(
+        "error",
+        error.response?.data?.error || "Test notification failed.",
+      );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container max-w-4xl mx-auto p-6 text-center text-gray-400">
+        Loading...
+      </div>
+    );
+  }
+
+  return (
+    <div className="container max-w-2xl mx-auto p-6">
+      {toast && <Toast type={toast.type} message={toast.message} />}
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-extrabold text-[var(--color-primary)] flex items-center justify-center gap-2">
+          <FaBell /> Notifications
+        </h1>
+        <p className="text-gray-400 text-lg mt-2">
+          Manage your Discord notifications.
+        </p>
+      </div>
+      <div className="bg-[var(--color-card)] p-8 shadow-lg rounded-lg border border-[var(--color-border)]">
+        <NotificationForm
+          initialSettings={initialSettings}
+          onSave={handleSave}
+          onTest={handleTest}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default Notifications;
+
+### ./src/pages/dashboard/Dashboard.jsx ###
+
+import { useState, useEffect, useMemo } from "react";
+import RepoList from "@/components/RepoList";
+import AddRepoModal from "@/components/modals/AddRepoModal";
+import {
+  FaPlus,
+  FaSyncAlt,
+  FaSearch,
+  FaThLarge,
+  FaList,
+  FaClock,
+  FaTimes,
+} from "react-icons/fa";
+import {
+  fetchRepositories,
+  addRepositoryAPI,
+  deleteRepositoryAPI,
+  updateRepositoryAPI,
+  scanUpdatesAPI,
+  fetchChangelog,
+  fetchScanStatus,
+} from "@/config/api";
+import ChangelogBox from "@/components/ui/ChangelogBox";
+
+const Dashboard = () => {
+  const [repos, setRepos] = useState([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isScanning, setIsScanning] = useState(false);
+  const [lastScan, setLastScan] = useState("Fetching...");
+  const [nextScan, setNextScan] = useState("Calculating...");
+  const [changelog, setChangelog] = useState(null);
+  const [layout, setLayout] = useState("grid");
+  const [loadingRepos, setLoadingRepos] = useState(true);
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const clearSearch = () => {
+    setSearchTerm("");
+  };
+
+  useEffect(() => {
+    setLoadingRepos(true);
+    fetchRepositories()
+      .then((data) => {
+        setRepos(data);
+        setLoadingRepos(false);
+      })
+      .catch(() => {
+        console.error("Error fetching repositories");
+        setLoadingRepos(false);
+      });
+
+    fetchScanStatus()
+      .then((data) => {
+        setLastScan(data.lastScan);
+        setNextScan(data.nextScan);
+      })
+      .catch(() => console.error("Failed to fetch scan times."));
+  }, []);
+
+  const filteredRepos = useMemo(
+    () =>
+      repos.filter((repo) =>
+        repo.Name?.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [repos, searchTerm],
+  );
+
+  const addRepository = async ({ url, name, version }) => {
+    try {
+      const newRepo = await addRepositoryAPI({ url, name, version });
+      setRepos((prev) => [...prev, newRepo]);
+    } catch {
+      console.error("Error adding repository");
+    }
+  };
+
+  const deleteRepo = async (id) => {
+    try {
+      await deleteRepositoryAPI(id);
+      setRepos((prev) => prev.filter((repo) => repo.ID !== id));
+    } catch {
+      console.error("Error deleting repository");
+    }
+  };
+
+  const updateRepository = async (id, newVersion) => {
+    try {
+      const updatedRepo = await updateRepositoryAPI(id, {
+        currentVersion: newVersion,
+      });
+      setRepos((prev) =>
+        prev.map((repo) =>
+          repo.ID === id
+            ? { ...repo, CurrentVersion: updatedRepo.CurrentVersion }
+            : repo,
+        ),
+      );
+    } catch {
+      console.error("Error updating repository");
+    }
+  };
+
+  const scanForUpdates = async () => {
+    setIsScanning(true);
+    try {
+      await scanUpdatesAPI();
+      const fetchedRepos = await fetchRepositories(); // Fetch and await
+      setRepos(fetchedRepos); // Update with fetched data
+
+      const scanStatus = await fetchScanStatus(); // Fetch and await
+      setLastScan(scanStatus.lastScan);
+      setNextScan(scanStatus.nextScan);
+    } catch (error) {
+      console.error("Error during scan:", error);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const showChangelog = async (id) => {
+    const found = repos.find((r) => r.ID === id);
+    if (!found) return;
+    try {
+      const changelogData = await fetchChangelog(id);
+      setChangelog({
+        name: found.Name,
+        version: found.CurrentVersion,
+        latestRelease: found.LatestRelease,
+        content: changelogData.content || "No changelog available.",
+      });
+    } catch {
+      console.error("Error fetching changelog");
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-6">
+      <div className="text-center mb-12">
+        <h1 className="text-4xl font-extrabold text-[var(--color-primary)] flex items-center justify-center gap-2">
+          <FaClock /> Dashboard
+        </h1>
+        <p className="text-gray-400 text-lg mt-2">
+          Manage your repositories easily.
+        </p>
+      </div>
+
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+        <div className="flex gap-4">
+          <button
+            onClick={() => setIsAdding(true)}
+            className="flex items-center gap-2 px-6 py-3 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-bold transition-all duration-200 shadow-md"
+          >
+            <FaPlus /> Add Repository
+          </button>
+          <button
+            onClick={scanForUpdates}
+            disabled={isScanning}
+            className="flex items-center gap-2 px-6 py-3 rounded-lg bg-gray-600 hover:bg-gray-700 text-white font-bold transition-all duration-200 shadow-md disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isScanning ? (
+              "Scanning..."
+            ) : (
+              <>
+                <FaSyncAlt /> Scan for update
+              </>
+            )}
+          </button>
+        </div>
+
+        <div className="flex gap-4">
+          <button
+            onClick={() => setLayout("grid")}
+            className={`p-2 rounded-lg ${layout === "grid"
+                ? "bg-[var(--color-primary)] text-white"
+                : "bg-gray-600 hover:bg-gray-700 text-white"
+              } transition-all duration-200`}
+          >
+            <FaThLarge />
+          </button>
+          <button
+            onClick={() => setLayout("vertical")}
+            className={`p-2 rounded-lg ${layout === "vertical"
+                ? "bg-[var(--color-primary)] text-white"
+                : "bg-gray-600 hover:bg-gray-700 text-white"
+              } transition-all duration-200`}
+          >
+            <FaList />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col items-center md:items-start text-gray-400 text-sm space-y-1 mb-4 md:mb-0 w-full md:w-auto">
+          <p>
+            <span className="font-medium text-[var(--color-primary)]">
+              Last Scan:
+            </span>{" "}
+            {lastScan}
+          </p>
+          <p>
+            <span className="font-medium text-[var(--color-primary)]">
+              Next Scan:
+            </span>{" "}
+            {nextScan}
+          </p>
+        </div>
+
+        <div className="relative w-full md:w-1/2">
+          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search repositories..."
+            onChange={handleSearchChange}
+            value={searchTerm}
+            className="w-full h-12 pl-10 pr-10 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none transition-all duration-200 placeholder-gray-400"
+          />
+          {searchTerm && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[var(--color-text)] transition-colors duration-200"
+            >
+              <FaTimes />
+            </button>
+          )}
+        </div>
+      </div>
+      {isAdding && (
+        <AddRepoModal
+          setIsAdding={setIsAdding}
+          addRepository={addRepository}
+          existingRepos={repos}
+        />
+      )}
+
+      {loadingRepos ? (
+        <div className="text-center text-gray-400 mt-8">Loading...</div>
+      ) : filteredRepos.length > 0 ? (
+        <RepoList
+          repos={filteredRepos}
+          deleteRepo={deleteRepo}
+          showChangelog={showChangelog}
+          updateRepository={updateRepository}
+          layout={layout}
+        />
+      ) : (
+        <div className="text-center text-gray-400 mt-8">
+          No repositories found.
+        </div>
+      )}
+
+      {changelog && (
+        <ChangelogBox {...changelog} onClose={() => setChangelog(null)} />
+      )}
+    </div>
+  );
+};
+
+export default Dashboard;
+
+### ./src/pages/settings/Settings.jsx ###
+
+import { useState, useEffect } from "react";
+import { useTheme } from "@/context/ThemeContext";
+import Toast from "@/components/ui/Toast";
+import InputField from "@/components/ui/InputField";
+import {
+  FaGithub,
+  FaLock,
+  FaClock,
+  FaPalette,
+  FaCog,
+  FaChevronDown,
+} from "react-icons/fa";
+import { fetchSettings, updateSettings, validateApiKey } from "@/config/api";
+import cronParser from "cron-parser";
+
+const isValidCron = (value) => {
+  if (!value.trim()) return false;
+  try {
+    cronParser.parseExpression(value.trim());
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+const Settings = ({ refreshBannerState }) => {
+  const { setTheme } = useTheme();
+  const [cronSchedule, setCronSchedule] = useState("");
+  const [githubApiKey, setGithubApiKey] = useState("");
+  const [tempTheme, setTempTheme] = useState("tokyoNight");
+  const [isLocked, setIsLocked] = useState(true);
+  const [toast, setToast] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [apiKeyType, setApiKeyType] = useState("password");
+  const [confirmReset, setConfirmReset] = useState(false);
+
+  const loadSettings = async () => {
+    try {
+      const settings = await fetchSettings();
+      setCronSchedule(settings.cronSchedule);
+      setTempTheme(settings.theme);
+      if (settings.githubApiKey) {
+        setGithubApiKey("â—â—â—â—â—â—â—â—");
+        setIsLocked(true);
+        setApiKeyType("password");
+      } else {
+        setGithubApiKey("");
+        setIsLocked(false);
+        setApiKeyType("text");
+      }
+    } catch {
+      setToast({ type: "error", message: "Failed to load settings." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    setLoading(true);
+    loadSettings();
+  }, []);
+
+  const showToast = (type, message) => {
+    setToast({ type, message });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const validateGitHubKey = async () => {
+    if (
+      !isLocked &&
+      githubApiKey.trim() !== "" &&
+      githubApiKey !== "â—â—â—â—â—â—â—â—"
+    ) {
+      try {
+        const isValid = await validateApiKey(githubApiKey.trim());
+        if (!isValid) {
+          setErrors((prev) => ({
+            ...prev,
+            githubApiKey: "Invalid GitHub API key.",
+          }));
+          return false;
+        } else {
+          setErrors((prev) => ({ ...prev, githubApiKey: undefined }));
+        }
+      } catch {
+        setErrors((prev) => ({
+          ...prev,
+          githubApiKey: "Error validating GitHub API key.",
+        }));
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const validateForm = () => {
+    let formErrors = {};
+    if (!cronSchedule.trim()) {
+      formErrors.cronSchedule = "Cron schedule cannot be empty.";
+    } else if (!isValidCron(cronSchedule)) {
+      formErrors.cronSchedule = "Invalid cron expression.";
+    }
+    setErrors(formErrors);
+    return Object.keys(formErrors).length === 0;
+  };
+
+  const handleSaveSettings = async () => {
+    if (!validateForm()) return;
+    if (!(await validateGitHubKey())) return;
+
+    setSaving(true);
+    try {
+      let apiKeyToSave;
+      if (isLocked && githubApiKey === "â—â—â—â—â—â—â—â—") {
+        apiKeyToSave = "";
+      } else if (githubApiKey.trim() === "") {
+        apiKeyToSave = "";
+      } else {
+        apiKeyToSave = githubApiKey;
+      }
+
+      await updateSettings({
+        cronSchedule,
+        githubApiKey: apiKeyToSave,
+        theme: tempTheme,
+      });
+
+      setTheme(tempTheme);
+      showToast("success", "Settings saved successfully.");
+      setErrors({});
+      if (refreshBannerState) await refreshBannerState();
+
+      await loadSettings();
+    } catch (error) {
+      console.error("Save settings error:", error);
+      showToast("error", "Failed to save settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResetClick = async () => {
+    if (confirmReset) {
+      try {
+        await updateSettings({
+          cronSchedule,
+          githubApiKey: "",
+          theme: tempTheme,
+          isReset: true,
+        });
+        setGithubApiKey("");
+        setIsLocked(false);
+        setApiKeyType("text");
+        setConfirmReset(false);
+        showToast("success", "API key reset successfully.");
+        if (refreshBannerState) await refreshBannerState();
+      } catch {
+        showToast("error", "Failed to reset API key.");
+      }
+    } else {
+      setConfirmReset(true);
+      setTimeout(() => setConfirmReset(false), 5000);
+    }
+  };
+
+  if (loading)
+    return <div className="text-center text-gray-400">Loading settings...</div>;
+
+  return (
+    <div className="container max-w-2xl mx-auto p-6">
+      {toast && <Toast type={toast.type} message={toast.message} />}
+      <div className="text-center mb-8">
+        <h1 className="text-4xl font-extrabold text-[var(--color-primary)] flex items-center justify-center gap-2">
+          <FaCog /> Settings
+        </h1>
+        <p className="text-gray-400 text-lg mt-2">
+          Manage your configurations.
+        </p>
+      </div>
+      <div className="bg-[var(--color-card)] rounded-lg shadow-md border border-[var(--color-border)] p-6 sm:p-8">
+        <div className="mb-6">
+          <label
+            htmlFor="theme"
+            className="block text-sm font-medium text-[var(--color-text)] mb-2"
+          >
+            Theme
+          </label>
+          <div className="relative">
+            <FaPalette className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)]" />
+            <select
+              id="theme"
+              value={tempTheme}
+              onChange={(e) => setTempTheme(e.target.value)}
+              className="w-full h-12 pl-10 pr-8 rounded-lg bg-[var(--color-bg)] text-[var(--color-text)] border border-[var(--color-border)] focus:ring-2 focus:ring-[var(--color-primary)] focus:border-[var(--color-primary)] outline-none appearance-none transition-all duration-200"
+            >
+              <option value="tokyoNight">Tokyo Night</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+            </select>
+            <FaChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] pointer-events-none" />
+          </div>
+        </div>
+
+        <div className="mb-6">
+          <InputField
+            label="Cron Schedule"
+            icon={FaClock}
+            type="text"
+            name="cronSchedule"
+            value={cronSchedule}
+            onChange={(e) => setCronSchedule(e.target.value)}
+            error={errors.cronSchedule}
+            placeholder="e.g., 0 */12 * * *"
+          />
+          <p className="text-xs text-[var(--color-text-secondary)] ml-3 mt-1">
+            <a
+              href="https://crontab.guru/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--color-primary)] hover:underline"
+            >
+              Cron help
+            </a>
+          </p>
+        </div>
+
+        <div className="mb-6">
+          <InputField
+            label="GitHub API Key"
+            icon={isLocked ? FaLock : FaGithub}
+            type={apiKeyType}
+            name="githubApiKey"
+            value={githubApiKey}
+            onChange={(e) => {
+              if (!isLocked) {
+                setGithubApiKey(e.target.value);
+              }
+            }}
+            disabled={isLocked}
+            error={errors.githubApiKey}
+            placeholder="Enter your GitHub API Key"
+            className={isLocked ? "bg-[var(--color-card)] text-gray-500" : ""}
+          />
+
+          {isLocked && (
+            <button
+              type="button"
+              onClick={handleResetClick}
+              className="relative overflow-hidden mt-2 px-4 py-2 text-sm rounded-md text-white transition-all duration-300 bg-[var(--color-action-delete)]"
+            >
+              <span className="invisible">Reset API Key</span>
+
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span
+                  className={`transition-all duration-300 ${confirmReset
+                      ? "-translate-x-2 opacity-0"
+                      : "translate-x-0 opacity-100"
+                    }`}
+                >
+                  Reset API Key
+                </span>
+                <span
+                  className={`absolute transition-all duration-300 ${confirmReset
+                      ? "translate-x-0 opacity-100"
+                      : "translate-x-2 opacity-0"
+                    }`}
+                >
+                  Confirm Reset
+                </span>
+              </div>
+            </button>
+          )}
+        </div>
+
+        <div className="flex justify-end">
+          <button
+            onClick={handleSaveSettings}
+            disabled={saving}
+            className="px-6 py-2.5 rounded-lg bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] text-white font-medium transition-all duration-200 shadow-sm disabled:opacity-70 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)] focus:ring-opacity-50"
+          >
+            {saving ? "Saving..." : "Save Settings"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Settings;
+
+### ./src/pages/settings/Settings.css ###
+
+.settings {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 3rem 1.5rem;
+}
+
+/* Card and container styling */
+.settings .container {
+    max-width: 700px;
+    width: 100%;
+    background-color: var(--color-card);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    padding: 3rem;
+    margin-top: 2rem;
+}
+
+/* Header section */
+.settings .title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+/* Form labels */
+.settings .label {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 0.75rem;
+    display: block;
+}
+
+/* Form input fields */
+.settings .input-field {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid var(--color-border);
+    border-radius: 0.5rem;
+    background-color: rgba(36, 40, 59, 0.9);
+    color: var(--color-text);
+    outline: none;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.settings .input-field:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 12px var(--color-primary);
+}
+
+.settings .input-field::placeholder {
+    color: rgba(192, 202, 245, 0.5);
+    font-style: italic;
+}
+
+/* Button styles */
+.settings .btn-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.settings .btn-primary {
+    flex: 1;
+    background-color: var(--color-primary);
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: bold;
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+}
+
+.settings .btn-primary:hover {
+    background-color: var(--color-primary-hover);
+    transform: translateY(-2px);
+}
+
+.settings .btn-secondary {
+    flex: 1;
+    background-color: #6b7280;
+    color: white;
+    border-radius: 0.5rem;
+    font-weight: bold;
+    padding: 1rem;
+    text-align: center;
+    transition: all 0.3s ease-in-out;
+}
+
+.settings .btn-secondary:hover {
+    background-color: #4b5563;
+}
+
+/* Success message styling */
+.settings .alert {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    font-weight: bold;
+    margin-bottom: 1.5rem;
+}
+
+.settings .alert-success {
+    background-color: #22c55e;
+    color: white;
+}
+
+.settings .alert-error {
+    background-color: #ef4444;
+    color: white;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .settings .container {
+        padding: 1.5rem;
+    }
+}
+
+### ./index.html ###
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Surveillance</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        background-color: #1a1b26;
+        font-family: "JetBrains Mono", monospace;
+      }
+    </style>
+    <link
+      rel="icon"
+      type="image/svg+xml"
+      href="/src/assets/surveillance_logo.png"
+    />
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
+
+### ./all_files_content.txt ###
+
+
+### ./eslint.config.js ###
+
+import js from "@eslint/js";
+import globals from "globals";
+import react from "eslint-plugin-react";
+import reactHooks from "eslint-plugin-react-hooks";
+import reactRefresh from "eslint-plugin-react-refresh";
+
+export default [
+  {
+    ignores: ["dist"],
+  },
+  {
+    files: ["**/*.{js,jsx}"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: "latest",
+        ecmaFeatures: { jsx: true },
+        sourceType: "module",
+      },
+    },
+    settings: {
+      react: {
+        version: "detect",
+      },
+    },
+    plugins: {
+      react,
+      "react-hooks": reactHooks,
+      "react-refresh": reactRefresh,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...react.configs.recommended.rules,
+      ...react.configs["jsx-runtime"].rules,
+      ...reactHooks.configs.recommended.rules,
+      "react/jsx-no-target-blank": "off",
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
+      "react/prop-types": "off", // disable prop-types
+    },
+  },
+];
+
+### ./vite.config.js ###
+
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
+import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: { "@": path.resolve(__dirname, "src") },
+  },
+});
+
+### ./package.json ###
+
+{
+  "name": "repos-monitor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cron-parser": "^4.9.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-icons": "^5.4.0",
+    "react-markdown": "^9.0.3",
+    "react-router-dom": "^7.1.3",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/react": "^18.3.18",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.17.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "eslint-plugin-react-refresh": "^0.4.16",
+    "globals": "^15.14.0",
+    "tailwindcss": "^4.0.0",
+    "vite": "^6.0.5"
+  }
+}
