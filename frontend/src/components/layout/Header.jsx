@@ -11,7 +11,7 @@ const Header = ({ showBanner }) => {
   const isActive = (path) => location.pathname === path;
 
   const handleLogout = () => {
-    sessionStorage.removeItem("token");
+    localStorage.removeItem("token");
     navigate("/login", { replace: true });
   };
 
