@@ -1,7 +1,5 @@
 FROM golang:1.23-alpine AS builder
 
-LABEL org.opencontainers.image.source https://github.com/vkoaala/surveillance
-
 RUN apk add --no-cache gcc musl-dev sqlite-dev nodejs npm
 
 WORKDIR /app
@@ -22,6 +20,8 @@ ENV CGO_ENABLED=1
 RUN go build -o /app/surveillance -ldflags "-s -w" ./cmd
 
 FROM alpine:latest
+
+LABEL org.opencontainers.image.source https://github.com/vkoaala/surveillance
 
 RUN apk add --no-cache tzdata
 
